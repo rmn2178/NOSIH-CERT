@@ -36,7 +36,10 @@ const env = readEnvFile(path.join(ROOT, ".env"));
 
 async function checkGemini() {
   const key = env.GEMINI_API_KEY;
-  if (!key) return console.log("[SKIP] GEMINI_API_KEY not set");
+  if (!key) {
+    console.log("[SKIP] GEMINI_API_KEY not set");
+    return null;
+  }
   const model = env.GEMINI_MODEL || "gemini-3.6-flash";
   try {
     const res = await fetch(
@@ -54,12 +57,43 @@ async function checkGemini() {
     if (res.ok) {
       const text = body?.candidates?.[0]?.content?.parts?.[0]?.text || "";
       console.log(`[PASS] Gemini  model=${model}  reply="${String(text).trim().slice(0, 40)}"`);
-    } else {
-      const msg = body?.error?.message || JSON.stringify(body).slice(0, 160);
-      console.log(`[FAIL] Gemini  HTTP ${res.status} - ${msg}`);
+      return true;
     }
+    const msg = body?.error?.message || JSON.stringify(body).slice(0, 160);
+    console.log(`[FAIL] Gemini  HTTP ${res.status} - ${msg}`);
+    return false;
   } catch (e) {
     console.log(`[FAIL] Gemini  ${e.message}`);
+    return false;
+  }
+}
+
+async function checkSupabase() {
+  const url = env.SUPABASE_URL;
+  const key = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.log("[SKIP] Supabase URL / service-role key not set");
+    return null;
+  }
+  if (key.startsWith("sb_publishable_")) {
+    console.log("[FAIL] Supabase  the configured key is PUBLISHABLE — the service_role secret is required");
+    return false;
+  }
+  try {
+    // Read-only: one row of ids. The service-role key must bypass RLS.
+    const res = await fetch(`${url}/rest/v1/users?select=id&limit=1`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (res.ok) {
+      console.log(`[PASS] Supabase  service-role key reads users (HTTP ${res.status})`);
+      return true;
+    }
+    const body = await res.text();
+    console.log(`[FAIL] Supabase  HTTP ${res.status} - ${body.slice(0, 160)}`);
+    return false;
+  } catch (e) {
+    console.log(`[FAIL] Supabase  ${e.message}`);
+    return false;
   }
 }
 
@@ -109,7 +143,7 @@ async function checkPinata() {
 
   if (!bearer && !keypair) {
     console.log("[SKIP] No Pinata credentials set");
-    return;
+    return null;
   }
 
   const results = [];
@@ -125,13 +159,17 @@ async function checkPinata() {
     results.push(await probePinata("KEY  -> pinFileToIPFS", "https://api.pinata.cloud/pinning/pinFileToIPFS", keypair));
 
   if (!results.some(Boolean)) {
-    console.log("  [FAIL] no credential can upload - deed uploads will fail");
+    console.log("  [FAIL] no credential can upload - certificate uploads will fail");
+    return false;
   }
+  return true;
 }
 
 (async () => {
-  console.log("-- Google Gemini --");
-  await checkGemini();
+  console.log("-- Supabase --");
+  const supabase = await checkSupabase();
+  console.log("\n-- Google Gemini --");
+  const gemini = await checkGemini();
   // Control: a bogus key must be rejected, otherwise the check above proves nothing.
   try {
     const res = await fetch(
@@ -151,5 +189,8 @@ async function checkPinata() {
     console.log(`[WARN] Gemini control  ${e.message}`);
   }
   console.log("\n-- Pinata --");
-  await checkPinata();
+  const pinata = await checkPinata();
+
+  const failed = [supabase, gemini, pinata].some((r) => r === false);
+  process.exitCode = failed ? 1 : 0;
 })();

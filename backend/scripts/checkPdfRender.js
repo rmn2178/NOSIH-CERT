@@ -1,10 +1,10 @@
 /**
- * Checks the PDF → image render path used for scanned deeds.
+ * Checks the PDF → image render path used for scanned certificates.
  *
- * The AI extractor falls back to Gemini vision for a PDF with no text layer.
- * That path renders pages through PDF.js, which needs its worker file. On a
- * serverless deployment the worker is not always packaged, and the failure
- * only shows up as "Setting up fake worker failed" in production.
+ * The local OCR strategy renders pages through PDF.js before Tesseract reads
+ * them, which needs the worker file. On a serverless deployment the worker is
+ * not always packaged, and the failure only shows up as "Setting up fake
+ * worker failed" in production.
  *
  * This script renders a generated one-page PDF the same way the service does,
  * so the failure is caught before it is deployed.
@@ -24,7 +24,7 @@ function buildPdf() {
       "/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
   ];
-  const stream = "BT /F1 24 Tf 30 100 Td (NOSIH render check) Tj ET";
+  const stream = "BT /F1 24 Tf 30 100 Td (CertiChain render check) Tj ET";
   objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
 
   let body = "%PDF-1.4\n";

@@ -16,7 +16,7 @@ const BACKEND = path.join(ROOT, "backend");
 const asUrl = (p) => pathToFileURL(p).href;
 
 const { default: dotenv } = await import(asUrl(path.join(BACKEND, "node_modules", "dotenv/lib/main.js")));
-dotenv.config({ path: path.join(BACKEND, ".env") });
+dotenv.config({ path: path.join(ROOT, ".env") });
 
 const mode = process.argv.includes("--keypair")
   ? "API key pair"
@@ -32,11 +32,11 @@ console.log(`\n── uploadToIPFS via ${mode} ──`);
 
 const started = Date.now();
 try {
-  const cid = await uploadToIPFS(Buffer.from("x"), "nosih-ipfs-test.txt", "text/plain");
+  const cid = await uploadToIPFS(Buffer.from("x"), "certichain-ipfs-test.txt", "text/plain");
   console.log(`  [PASS] uploaded 1 byte → CID ${cid}  (${Date.now() - started}ms)`);
   console.log(`  gateway: https://gateway.pinata.cloud/ipfs/${cid}`);
 
-  // The verify page fetches the stored deed back through the gateways.
+  // The verify page fetches the stored ciphertext back through the gateways.
   try {
     const result = await fetchIPFSFile(cid);
     const bytes = result?.buffer?.length;

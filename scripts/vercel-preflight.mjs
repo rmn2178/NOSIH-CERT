@@ -50,7 +50,7 @@ function skip(label, detail = "") {
 }
 
 function section(title) {
-  console.log(`\n▸ ${title}`);
+  console.log(`\n== ${title}`);
 }
 
 // ── 1. Environment ────────────────────────────────────────
@@ -95,7 +95,7 @@ function checkEnv() {
     ["DOCUMENT_ENC_KEY", (v) => /^[0-9a-f]{64}$/i.test(v)],
     ["HASH_PEPPER", (v) => /^[0-9a-f]{64}$/i.test(v)],
     ["CONTRACT_ADDRESS", (v) => /^0x[0-9a-f]{40}$/i.test(v)],
-    ["ISSUER_PRIVATE_KEY", (v) => v.replace(/^0x/, "").length === 64],
+    ["REVOKE_PRIVATE_KEY", (v) => v.replace(/^0x/, "").length === 64],
   ];
 
   for (const [name, test] of required) {
@@ -151,12 +151,12 @@ function checkServices(env) {
       .forEach((l) => console.log(`        ${l.trim()}`));
   }
 
-  // The gas report is read-only: it simulates, it never broadcasts.
+  // The gas report is read-only: balances + estimates, it never broadcasts.
   const gas = run("check-gas.mjs");
   if (gas.status === 0) {
-    ok("the registrar wallet can pay for a registration");
+    ok("the chain wallets are funded for live writes");
   } else {
-    bad("the registrar wallet can pay for a registration");
+    bad("the chain wallets are funded for live writes");
     console.log(`        ${(gas.stdout || gas.stderr || "").split(/\r?\n/).slice(0, 6).join("\n        ")}`);
   }
 }
@@ -326,7 +326,7 @@ await checkTrace();
 
 console.log("");
 if (failures) {
-  console.log(`✗ ${failures} of ${checks} checks failed. Fix them before deploying.`);
+  console.log(`${failures} of ${checks} checks FAILED. Fix them before deploying.`);
   process.exit(1);
 }
-console.log(`✓ all ${checks} checks passed.`);
+console.log(`All ${checks} checks PASS.`);

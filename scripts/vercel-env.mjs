@@ -60,12 +60,15 @@ function readEnvFile(file) {
   return out;
 }
 
-// One env file for the whole project.
+// One env file for the backend, plus the frontend's BUILD-time public config.
 const merged = readEnvFile(".env");
+const frontend = readEnvFile(path.join("frontend", ".env.local"));
 
 // The variables the Vercel function needs. Everything else (PORT, NODE_ENV,
-// DATABASE_URL, VERIFY_BASE_URL, BACKEND_PUBLIC_URL) stays local — Vercel
-// sets VERCEL itself and derives the public URL from the request host.
+// VERIFY_BASE_URL, BACKEND_PUBLIC_URL, ADMIN_*, DEPLOYER_PRIVATE_KEY) stays
+// local — Vercel sets VERCEL itself and derives the public URL from the
+// request host. DEPLOYER_PRIVATE_KEY is a local hardhat key: NEVER pushed.
+// There is no ISSUER_PRIVATE_KEY in CertiChain — issuance is MetaMask-only.
 const REQUIRED = [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -74,19 +77,25 @@ const REQUIRED = [
   "DOCUMENT_ENC_KEY",
   "HASH_PEPPER",
   "CONTRACT_ADDRESS",
-  "ISSUER_PRIVATE_KEY",
+  "REVOKE_PRIVATE_KEY",
   "AMOY_RPC_URL",
   "GEMINI_API_KEY",
   "GEMINI_MODEL",
   "PINATA_API_KEY",
   "PINATA_API_SECRET",
-  "VIEW_DOCUMENT_POLICY",
   "IPFS_GATEWAY_BASE_URL",
-  "ADMIN_EMAIL",
-  "ADMIN_PASSWORD",
 ];
 
-const OPTIONAL = ["ALCHEMY_AMOY_URL", "PINATA_JWT", "MAX_UPLOAD_MB", "FRONTEND_URL"];
+const OPTIONAL = ["ALCHEMY_AMOY_URL", "PINATA_JWT", "MAX_UPLOAD_MB", "FRONTEND_URL", "CHAIN_ID"];
+
+// REACT_APP_* are inlined at BUILD time — they must exist on the project
+// BEFORE `vercel deploy` runs the frontend build. Public values only.
+const FRONTEND_REQUIRED = [
+  "REACT_APP_API_URL",
+  "REACT_APP_CONTRACT_ADDRESS",
+  "REACT_APP_CHAIN_ID",
+  "REACT_APP_AMOY_RPC_URL",
+];
 
 const wanted = ONLY.length ? REQUIRED.filter((n) => ONLY.includes(n)) : [...REQUIRED, ...OPTIONAL];
 
@@ -106,6 +115,13 @@ for (const name of wanted) {
   } else if (REQUIRED.includes(name)) {
     missing.push(name);
   }
+}
+
+for (const name of FRONTEND_REQUIRED) {
+  if (ONLY.length && !ONLY.includes(name)) continue;
+  const value = frontend[name];
+  if (value && value.trim()) present.push([name, value]);
+  else missing.push(`${name} (frontend/.env.local — build-time)`);
 }
 
 console.log(`Project    : ${PROJECT}`);

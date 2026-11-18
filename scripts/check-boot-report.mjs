@@ -33,7 +33,7 @@ const BROKEN = {
 
 // The server writes to a log file rather than a pipe: on Windows, killing a
 // child while its stdout pipe is still open trips a libuv assertion.
-const logPath = path.join(os.tmpdir(), `nosih-boot-report-${process.pid}.log`);
+const logPath = path.join(os.tmpdir(), `certichain-boot-report-${process.pid}.log`);
 const logFd = fs.openSync(logPath, "w");
 
 const child = spawn(process.execPath, ["server.js"], {
@@ -90,11 +90,11 @@ if (missing.length) fail(`the report did not name these missing variables: ${mis
 if (!problems.every((p) => p.reason && p.hint)) fail("each problem needs a reason and a hint");
 
 // Every other route must answer with the same readable report, not crash.
-const other = await fetch(`${BASE}/api/land/stats`);
-console.log(`\nGET /api/land/stats -> ${other.status}`);
+const other = await fetch(`${BASE}/api/certificates`);
+console.log(`\nGET /api/certificates -> ${other.status}`);
 const otherBody = await other.json();
-if (other.status !== 503) fail(`expected /api/land/stats to answer 503, got ${other.status}`);
-if (!otherBody?.problems) fail("/api/land/stats must include the problem list");
+if (other.status !== 503) fail(`expected /api/certificates to answer 503, got ${other.status}`);
+if (!otherBody?.problems) fail("/api/certificates must include the problem list");
 
 console.log("");
 console.log("The server stayed up and named every missing variable.");

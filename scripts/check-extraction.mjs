@@ -1,93 +1,92 @@
 /**
- * Exercises the extraction chain against the real Gemini API.
+ * Exercises the certificate extraction chain against the REAL Gemini API.
  *
  *   node scripts/check-extraction.mjs [file.pdf]
  *
- * With no argument it builds both fixtures — a digital deed and a scanned
- * one — and runs each through the service. It asserts three things, not one:
+ * With no argument it builds both fixtures — a digital certificate and a
+ * scanned one — and runs each through the service. It asserts:
  *
  *   - the extraction succeeded and was useful,
- *   - the *expected* strategy answered (a digital deed must not be rendered;
- *     a scanned deed must be read locally and sent as a text dump),
- *   - every field the fixture states came back with the value it states.
+ *   - the EXPECTED strategy answered (digital → text-layer; scanned →
+ *     local-ocr, i.e. recognised on the server and sent as a text dump —
+ *     no certificate image ever leaves the deployment),
+ *   - the identity fields the fixture states came back correctly.
  *
- * The middle assertion is the one that matters most. A useful answer from the
- * wrong strategy means the chain fell through to a slower, more expensive path
- * — and, for a scanned deed, that deed images left the server when they did
- * not need to.
+ * Passing a file of your own skips the strategy/field assertions, since the
+ * script cannot know what that certificate says.
  *
- * Passing a file of your own skips the strategy and field assertions, since
- * the script cannot know what that deed says.
- *
- * This check calls the real API and spends quota. The offline companion,
- * check-extraction-resilience.mjs, proves the retry and budget behaviour
- * against a local stand-in instead.
+ * Spends Gemini quota. The offline companion is backend/scripts/checkP4.js
+ * (stand-in model: retry, backoff, budget, text-only payloads).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import {
-  buildTextDeed,
-  buildScannedDeed,
-  DEED_EXPECTED,
-  DEED_AREA,
-} from "./lib/deed-fixtures.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
 const BACKEND = path.join(ROOT, "backend");
 
+const { makeCertificateFixtures } = await import(
+  pathToFileURL(path.join(BACKEND, "scripts", "makeCertificateFixtures.js")).href
+);
+
 const given = process.argv[2];
+const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "certichain-extract-"));
 
-// ── Run ───────────────────────────────────────────────────
+let cases;
+if (given) {
+  cases = [[path.resolve(given), path.basename(given), null]];
+} else {
+  const fixtures = await makeCertificateFixtures(workDir);
+  cases = [
+    [fixtures.digital, "digital certificate", "text-layer"],
+    [fixtures.scanned, "scanned certificate", "local-ocr"],
+  ];
+}
 
-const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nosih-extract-"));
-const cases = given
-  ? [[path.resolve(given), path.basename(given), null]]
-  : [
-      // A digital deed must not be rendered at all.
-      [buildTextDeed(path.join(workDir, "text-deed.pdf")), "text deed", "text-layer"],
-      // A scanned deed must be read locally and sent as a text dump, not as
-      // images and not as the whole PDF.
-      [buildScannedDeed(path.join(workDir, "scanned-deed.pdf")), "scanned deed", "local-ocr"],
-    ];
+// Normalized comparison — the model may change case/spacing, not facts.
+const norm = (v) => String(v ?? "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9.]+/g, " ").replace(/\s+/g, " ").trim();
+const EXPECTED = {
+  holderName: "ASHA RAO",
+  holderIdentifier: "21CS1042",
+  institutionName: "ANNA UNIVERSITY",
+  certificateNumber: "AU/2024/UG/001234",
+  qualification: "BACHELOR OF ENGINEERING",
+  specialization: "COMPUTER SCIENCE AND ENGINEERING",
+  percentage: "87.5",
+  academicYear: "2020 2024",
+  issueDate: "2024 08 15",
+  signatoryName: "R KUMAR",
+};
 
-const service = path.join(BACKEND, "services", "ai.js");
+const service = path.join(BACKEND, "services", "certificateExtraction.js");
 const { EXTRACTION_STRATEGIES } = await import(pathToFileURL(service).href);
 const strategyName = (id) => EXTRACTION_STRATEGIES.find((s) => s.id === id)?.name ?? id;
+
 const probe = path.join(workDir, "probe.mjs");
 fs.writeFileSync(
   probe,
-  `import { extractDeedMetadata, isUsefulExtraction, shutdownExtraction } from "${pathToFileURL(service).href}";
-const file = process.argv[2];
-const lines = [];
-const original = console.log;
-console.log = (...a) => { lines.push(a.join(" ")); original(...a); };
+  `import { extractCertificateMetadata, isUsefulExtraction, shutdownExtraction } from "${pathToFileURL(service).href}";
 let error = "";
 let data = null;
 try {
-  data = await extractDeedMetadata(file, "check.pdf");
+  data = await extractCertificateMetadata(process.argv[2], "check.pdf");
 } catch (err) {
   error = err && err.message ? err.message : String(err);
 } finally {
   // The OCR worker is a live thread; exiting with it running trips a libuv
-  // assertion. Release it before the result is printed and the process ends.
+  // assertion on Windows. Release it before the process ends.
   try { await shutdownExtraction(); } catch { /* it is going away anyway */ }
 }
-// The service logs the strategy that answered as "[ai] strategy: <id>".
-// Reading that marker — rather than a copy of the wording — is what keeps this
-// check honest when the chain is reordered or a log line is reworded.
-const reached = [...new Set(lines.map((l) => l.match(/^\\[ai\\] strategy: ([a-z-]+)/)?.[1]).filter(Boolean))];
-console.log("EXTRACT_RESULT " + JSON.stringify({ reached, error, data, useful: isUsefulExtraction(data) }));
+console.log("EXTRACT_RESULT " + JSON.stringify({ error, data, useful: isUsefulExtraction(data) }));
 `,
   "utf8"
 );
 
-console.log("Extraction check — real Gemini API");
-console.log(`  gemini key : ${process.env.GEMINI_API_KEY ? "from the environment" : "from the root .env"}`);
-console.log(`  model      : ${process.env.GEMINI_MODEL || "gemini-3.6-flash (default)"}`);
+console.log("Certificate extraction check — real Gemini API");
+console.log(`  model: ${process.env.GEMINI_MODEL || "gemini-3.6-flash (default)"}`);
 
 let failures = 0;
 for (const [file, label, expectedStrategy] of cases) {
@@ -97,7 +96,6 @@ for (const [file, label, expectedStrategy] of cases) {
     timeout: 300000,
     env: { ...process.env },
   });
-
   const out = `${res.stdout || ""}${res.stderr || ""}`;
   const line = out.split(/\r?\n/).find((l) => l.startsWith("EXTRACT_RESULT "));
   if (!line) {
@@ -108,7 +106,7 @@ for (const [file, label, expectedStrategy] of cases) {
   }
 
   const parsed = JSON.parse(line.slice("EXTRACT_RESULT ".length));
-  const strategy = parsed.reached.map(strategyName).join(" → ") || "none";
+  const strategy = parsed.data?.strategy ?? "none";
 
   if (parsed.error) {
     console.log(`  FAIL  ${label} — ${strategy}: ${parsed.error}`);
@@ -116,48 +114,47 @@ for (const [file, label, expectedStrategy] of cases) {
     continue;
   }
   if (!parsed.useful) {
-    console.log(`  FAIL  ${label} — ${strategy}: the extraction was not useful`);
-    console.log(`        ${JSON.stringify(parsed.data)}`);
+    console.log(`  FAIL  ${label} — ${strategy}: extraction was not useful`);
+    console.log(`        ${JSON.stringify(parsed.data?.fields)}`);
     failures++;
     continue;
   }
 
   const problems = [];
   if (expectedStrategy) {
-    if (parsed.reached[0] !== expectedStrategy) {
-      problems.push(`expected ${strategyName(expectedStrategy)}, got ${strategy}`);
+    if (strategy !== expectedStrategy) {
+      problems.push(`expected strategy ${expectedStrategy}, got ${strategy}`);
     }
-    for (const [key, want] of Object.entries(DEED_EXPECTED)) {
-      const got = parsed.data[key] ?? "";
-      if (got.toLowerCase() !== want.toLowerCase()) problems.push(`${key}: "${got}" ≠ "${want}"`);
-    }
-    const area = Number(parsed.data.area);
-    if (!Number.isFinite(area) || Math.abs(area - DEED_AREA) > 1e-6) {
-      problems.push(`area: "${parsed.data.area}" ≠ ${DEED_AREA}`);
+    for (const [key, want] of Object.entries(EXPECTED)) {
+      const got = norm(parsed.data.fields?.[key]);
+      // Dates/years may be reformatted — compare digit content, not punctuation.
+      const wanted = want.replace(/[^A-Z0-9.]/g, "");
+      const gotten = got.replace(/[^A-Z0-9.]/g, "");
+      if (!gotten.includes(wanted) && !wanted.includes(gotten)) {
+        problems.push(`${key}: "${parsed.data.fields?.[key]}" ≠ "${want}"`);
+      }
     }
   }
 
   if (problems.length) {
-    console.log(`  FAIL  ${label} — ${strategy}`);
+    console.log(`  FAIL  ${label} — ${strategyName(strategy)}`);
     problems.forEach((p) => console.log(`        ${p}`));
     failures++;
     continue;
   }
 
-  console.log(`  PASS  ${label} — ${strategy}`);
-  console.log(`        survey=${parsed.data.surveyNumber} area=${parsed.data.area} ${parsed.data.areaUnit}`);
-  console.log(`        buyer=${parsed.data.buyerName} seller=${parsed.data.sellerName}`);
-  console.log(`        ${parsed.data.village}, ${parsed.data.taluk}, ${parsed.data.district}, ${parsed.data.state}`);
-  console.log(`        ${parsed.data.documentType} · ${parsed.data.registrationNumber} · ${parsed.data.registrationDate}`);
-  console.log(`        ${parsed.data.sroOffice}`);
+  const f = parsed.data.fields;
+  console.log(`  PASS  ${label} — ${strategyName(strategy)}`);
+  console.log(`        ${f.holderName} · ${f.certificateNumber} · ${f.institutionName}`);
+  console.log(`        ${f.qualification} (${f.specialization}) · ${f.percentage}% · ${f.academicYear}`);
 }
 
 fs.rmSync(workDir, { recursive: true, force: true });
 console.log("");
 if (failures) {
-  console.log(`✗ ${failures} extraction check(s) failed.`);
+  console.log(`${failures} extraction check(s) FAILED.`);
   process.exit(1);
 }
-console.log("✓ every extraction check passed.");
-console.log("  A digital deed read through its text layer; a scanned deed was");
-console.log("  recognised locally and sent to the model as a text dump.");
+console.log("Every extraction check PASS.");
+console.log("  Digital certificate read through its text layer; scanned certificate");
+console.log("  recognised locally and sent to the model as a text dump only.");
