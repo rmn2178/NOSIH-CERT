@@ -1,0 +1,38 @@
+{
+  "name": "nosih-contracts",
+  "version": "1.0.0",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:amoy": "hardhat run scripts/deploy.js --network amoy",
+    "issuer:add": "hardhat run scripts/addIssuer.js --network amoy",
+    "check:env": "node scripts/check-env.js",
+    "check:runtime": "node scripts/check-runtime.js",
+    "check:gas": "node scripts/check-gas.mjs",
+    "check:services": "node scripts/check-services.js",
+    "check:jwt": "node scripts/diagnose-pinata-jwt.js",
+    "check:ipfs": "node scripts/test-ipfs-service.mjs",
+    "check:vercel": "node scripts/check-vercel-env.js",
+    "check:login": "node scripts/check-login.mjs",
+    "check:tour": "node scripts/check-tour-steps.mjs",
+    "check:pdf": "node backend/scripts/checkPdfRender.js",
+    "check:extract": "node --env-file=.env scripts/check-extraction.mjs",
+    "check:extract:resilience": "node scripts/check-extraction-resilience.mjs",
+    "check:readme": "node scripts/check-readme.mjs",
+    "check:deploy": "node scripts/vercel-preflight.mjs",
+    "check:deploy:full": "node scripts/simulate-deploy.mjs",
+    "check:boot": "node scripts/check-boot-report.mjs",
+    "check:ui-failure": "node scripts/check-ui-failure.mjs",
+    "vercel:env": "node scripts/vercel-env.mjs",
+    "vercel:deploy": "node scripts/vercel-deploy.mjs",
+    "smoke:api": "node scripts/smoke-api.js",
+    "db:reset": "node scripts/reset-supabase.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.3.1"
+  }
+}
