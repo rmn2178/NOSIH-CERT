@@ -1,50 +1,29 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { login, apiErrorMessage } from "../utils/api";
-import logo from "../assets/nosih-logo.png";
-import { TourLauncher } from "../components/tour/TourLauncher";
-import { useTour } from "../components/tour/TourProvider";
-import { DEMO_CREDENTIALS, tourWasSkipped } from "../components/tour/demoCredentials";
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { ScanSearch } from "lucide-react";
+import { login, applyInstitution, apiErrorMessage } from "../utils/api";
+import logo from "../assets/certichain-logo.svg";
 import "./styles.css";
 
+/**
+ * Sign-in for staff, plus the PUBLIC institution application form.
+ * Applying creates a pending institution and its first institution_admin —
+ * nothing can be issued until a platform admin approves it.
+ */
 export default function LoginPage() {
+  const [mode, setMode] = useState("login"); // login | apply
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const formRef = useRef(null);
+  const [applied, setApplied] = useState(null);
+  const [app, setApp] = useState({
+    name: "", legalName: "", registrationNumber: "", website: "", address: "",
+    adminEmail: "", adminPassword: "",
+  });
   const navigate = useNavigate();
-  const { skipped } = useTour();
 
-  // ── Demo sign-in ───────────────────────────────────────
-  // Skipping the walkthrough fills the form in, and the walkthrough itself
-  // can ask for a sign-in when it reaches a registrar-only screen.
-  const fillDemoCredentials = () => {
-    setEmail(DEMO_CREDENTIALS.email);
-    setPassword(DEMO_CREDENTIALS.password);
-  };
-
-  useEffect(() => {
-    if (tourWasSkipped()) fillDemoCredentials();
-
-    const onTourSignIn = () => {
-      fillDemoCredentials();
-      // Let React commit the values before the form is submitted.
-      setTimeout(() => {
-        if (formRef.current) formRef.current.requestSubmit();
-      }, 80);
-    };
-
-    window.addEventListener("nosih:tour-signin", onTourSignIn);
-    return () => window.removeEventListener("nosih:tour-signin", onTourSignIn);
-  }, []);
-
-  // The visitor may skip the walkthrough after this page has loaded.
-  useEffect(() => {
-    if (skipped) fillDemoCredentials();
-  }, [skipped]);
-
-  async function handleSubmit(e) {
+  async function handleLogin(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -60,48 +39,110 @@ export default function LoginPage() {
     }
   }
 
+  async function handleApply(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const payload = { ...app, website: app.website || undefined };
+      const res = await applyInstitution(payload);
+      setApplied(res.data);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Application failed"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const setField = (key) => (e) => setApp((s) => ({ ...s, [key]: e.target.value }));
+
   return (
     <div className="auth-wrapper">
       <div className="auth-card">
-        <TourLauncher variant="corner" />
-
         <div className="auth-logo">
-          <img src={logo} alt="NOSIH logo" className="logo-img" />
-          <h1>NOSIH</h1>
-          <p>Decentralized Deed Authentication</p>
+          <img src={logo} alt="CertiChain logo" className="logo-img" />
+          <h1>CertiChain</h1>
+          <p>Decentralized Certificate Authentication</p>
         </div>
 
-        <form onSubmit={handleSubmit} ref={formRef}>
-          <div className="field">
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              placeholder="admin@nosih.com"
-            />
+        {applied ? (
+          <div>
+            <div className="alert alert-success">
+              Application submitted for <strong>{applied.institution?.name}</strong>
+              {" "}(<span className="mono">{applied.institution?.institutionId}</span>).
+              A platform admin must approve the institution before certificates can be issued.
+              Sign in with the admin account you just created once it is approved.
+            </div>
+            <button type="button" className="btn btn-primary full-width" onClick={() => { setApplied(null); setMode("login"); }}>
+              Back to sign in
+            </button>
           </div>
-          <div className="field">
-            <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-          </div>
+        ) : (
+          <>
+            <div className="auth-tabs">
+              <button type="button" className={`auth-tab ${mode === "login" ? "active" : ""}`} onClick={() => { setMode("login"); setError(""); }}>
+                Sign in
+              </button>
+              <button type="button" className={`auth-tab ${mode === "apply" ? "active" : ""}`} onClick={() => { setMode("apply"); setError(""); }}>
+                Register institution
+              </button>
+            </div>
 
-          {error && <div className="alert alert-error">{error}</div>}
-
-          <button type="submit" className="btn btn-primary full-width" disabled={loading}>
-            {loading ? "Signing in…" : "Sign In"}
-          </button>
-        </form>
+            {mode === "login" ? (
+              <form onSubmit={handleLogin}>
+                <div className="field">
+                  <label>Email</label>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@institution.edu" autoComplete="username" />
+                </div>
+                <div className="field">
+                  <label>Password</label>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" autoComplete="current-password" />
+                </div>
+                {error && <div className="alert alert-error">{error}</div>}
+                <button type="submit" className="btn btn-primary full-width" disabled={loading}>
+                  {loading ? "Signing in…" : "Sign In"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleApply}>
+                <div className="field">
+                  <label>Institution name</label>
+                  <input value={app.name} onChange={setField("name")} required minLength={2} maxLength={200} placeholder="National Institute of Technology" />
+                </div>
+                <div className="field">
+                  <label>Registration number</label>
+                  <input value={app.registrationNumber} onChange={setField("registrationNumber")} required minLength={2} maxLength={100} placeholder="Official registration / charter number" />
+                </div>
+                <div className="field">
+                  <label>Website (optional)</label>
+                  <input type="url" value={app.website} onChange={setField("website")} placeholder="https://…" />
+                </div>
+                <div className="field">
+                  <label>Address (optional)</label>
+                  <input value={app.address} onChange={setField("address")} maxLength={500} />
+                </div>
+                <div className="field">
+                  <label>Admin email</label>
+                  <input type="email" value={app.adminEmail} onChange={setField("adminEmail")} required placeholder="admin@institution.edu" />
+                </div>
+                <div className="field">
+                  <label>Admin password</label>
+                  <input type="password" value={app.adminPassword} onChange={setField("adminPassword")} required minLength={8} maxLength={128} autoComplete="new-password" />
+                </div>
+                {error && <div className="alert alert-error">{error}</div>}
+                <button type="submit" className="btn btn-primary full-width" disabled={loading}>
+                  {loading ? "Submitting…" : "Submit application"}
+                </button>
+                <p className="auth-note">
+                  Applications are reviewed by the platform. Issuance stays disabled until approval.
+                </p>
+              </form>
+            )}
+          </>
+        )}
 
         <div className="auth-links">
-          <a href="/verify">🔍 Public Verification Portal</a>
+          <Link to="/verify"><ScanSearch size={15} strokeWidth={1.75} aria-hidden /> Public verification portal</Link>
         </div>
       </div>
     </div>

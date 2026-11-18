@@ -1,58 +1,37 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
-import RegisterPage from "./pages/RegisterPage";
-import RecordsPage from "./pages/RecordsPage";
+import IssuePage from "./pages/IssuePage";
+import CertificatesPage from "./pages/CertificatesPage";
+import CertificateDetailsPage from "./pages/CertificateDetailsPage";
+import InstitutionsPage from "./pages/InstitutionsPage";
 import VerifyPage from "./pages/VerifyPage";
-import api from "./utils/api";
-import { TourProvider } from "./components/tour/TourProvider";
-
-function PrivateRoute({ children }) {
-  const [status, setStatus] = useState("checking"); // checking | valid | invalid
-
-  useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    if (!token) {
-      setStatus("invalid");
-      return;
-    }
-
-    // Validate token against the backend
-    api.get("/auth/me")
-      .then(() => setStatus("valid"))
-      .catch(() => {
-        sessionStorage.removeItem("token");
-        sessionStorage.removeItem("user");
-        setStatus("invalid");
-      });
-  }, []);
-
-  if (status === "checking") return null; // brief blank while validating
-  if (status === "invalid") return <Navigate to="/login" replace />;
-  return children;
-}
+import TamperPage from "./pages/TamperPage";
 
 export default function App() {
   return (
     <BrowserRouter>
-      {/* The provider sits inside the router so it can navigate between the
-          surfaces the walkthrough visits. */}
-      <TourProvider>
-        <Routes>
-          {/* Public */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/verify" element={<VerifyPage />} />
+      <Routes>
+        {/* Public — verification never requires an account */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify" element={<VerifyPage />} />
+        <Route path="/tamper" element={<TamperPage />} />
 
-          {/* Protected Issuer Portal */}
-          <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-          <Route path="/register" element={<PrivateRoute><RegisterPage /></PrivateRoute>} />
-          <Route path="/records" element={<PrivateRoute><RecordsPage /></PrivateRoute>} />
+        {/* Protected portal */}
+        <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route
+          path="/issue"
+          element={<ProtectedRoute roles={["issuer", "institution_admin"]}><IssuePage /></ProtectedRoute>}
+        />
+        <Route path="/certificates" element={<ProtectedRoute><CertificatesPage /></ProtectedRoute>} />
+        <Route path="/certificates/:certificateId" element={<ProtectedRoute><CertificateDetailsPage /></ProtectedRoute>} />
+        <Route path="/institutions" element={<ProtectedRoute><InstitutionsPage /></ProtectedRoute>} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </TourProvider>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }

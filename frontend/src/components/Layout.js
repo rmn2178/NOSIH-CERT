@@ -1,14 +1,15 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FileUp, FolderOpen, ScanSearch } from "lucide-react";
-import logo from "../assets/nosih-logo.png";
-import { TourLauncher } from "./tour/TourLauncher";
+import { LayoutDashboard, FileUp, FolderOpen, Building2, ScanSearch, FileSearch } from "lucide-react";
+import logo from "../assets/certichain-logo.svg";
+import { sessionUser } from "../utils/api";
+import { ROLE_LABELS } from "../utils/certificateHelpers";
 
 const NAV_ICON = { size: 18, strokeWidth: 1.75, "aria-hidden": true };
 
 export default function Layout({ title, children }) {
   const navigate = useNavigate();
-  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+  const user = sessionUser() || {};
 
   function logout() {
     sessionStorage.removeItem("token");
@@ -18,22 +19,25 @@ export default function Layout({ title, children }) {
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard {...NAV_ICON} />, label: "Dashboard" },
-    { to: "/register", icon: <FileUp {...NAV_ICON} />, label: "Register Deed" },
-    { to: "/records", icon: <FolderOpen {...NAV_ICON} />, label: "Land Records" },
-    { to: "/verify", icon: <ScanSearch {...NAV_ICON} />, label: "Verify Land" },
+    ...( ["issuer", "institution_admin"].includes(user.role)
+      ? [{ to: "/issue", icon: <FileUp {...NAV_ICON} />, label: "Issue Certificate" }]
+      : [] ),
+    { to: "/certificates", icon: <FolderOpen {...NAV_ICON} />, label: "Certificates" },
+    { to: "/institutions", icon: <Building2 {...NAV_ICON} />, label: "Institutions" },
+    { to: "/verify", icon: <ScanSearch {...NAV_ICON} />, label: "Verify" },
+    { to: "/tamper", icon: <FileSearch {...NAV_ICON} />, label: "Tamper Check" },
   ];
 
   return (
     <div className="app-layout">
-      {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <img src={logo} alt="NOSIH logo" className="brand-logo" />
-          <span>NOSIH</span>
+          <img src={logo} alt="CertiChain logo" className="brand-logo" />
+          <span>CertiChain</span>
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(item => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -49,18 +53,16 @@ export default function Layout({ title, children }) {
         <div className="sidebar-footer">
           <div className="user-info">
             <small>{user.email}</small>
-            <span className="role-badge">{user.role}</span>
+            <span className="role-badge">{ROLE_LABELS[user.role] || user.role}</span>
+            {user.institution?.name && <small className="user-institution">{user.institution.name}</small>}
           </div>
           <button onClick={logout} className="logout-btn">Sign Out</button>
-          <TourLauncher variant="sidebar" />
         </div>
       </aside>
 
-      {/* Main */}
       <main className="main-content">
         <header className="page-header">
           <h1>{title}</h1>
-          <TourLauncher variant="page-help" />
         </header>
         <div className="page-body">{children}</div>
       </main>

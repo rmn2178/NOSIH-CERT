@@ -1,172 +1,176 @@
 import React, { useEffect, useState } from "react";
-import { listLandRecords, getLandStats } from "../utils/api";
-import Layout from "../components/Layout";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  Landmark,
-  ScrollText,
-  ArrowLeftRight,
-  ShieldAlert,
-  FileUp,
-  ScanSearch,
-  FolderOpen,
-  Copy,
-  Check,
-  ArrowUpRight,
-  ArrowRight,
+  Award, ShieldCheck, Ban, Clock, Building2, FileUp, ScanSearch, ArrowRight,
 } from "lucide-react";
+import Layout from "../components/Layout";
+import { listCertificates, listInstitutions, apiErrorMessage, sessionUser } from "../utils/api";
+import {
+  typeLabel, statusBadgeClass, STATUS_LABELS, formatDate, ROLE_LABELS,
+} from "../utils/certificateHelpers";
 
-const STAT_ICON = { size: 28, strokeWidth: 1.75 };
+const ICON = { size: 20, strokeWidth: 1.75, "aria-hidden": true };
 
+/**
+ * Institution-scoped overview (platform admins see platform-wide numbers).
+ * Counts come from the list endpoint's exact totals per status — no invented
+ * statistics. Expiry is mirrored lazily by verification, so the expired
+ * count reflects certificates already judged expired.
+ */
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ records: 0, parcels: 0, transfers: 0, revoked: 0 });
+  const user = sessionUser() || {};
+  const isPlatformAdmin = user.role === "platform_admin";
+  const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState(null);
-
-  const copyId = (id, key = id) => {
-    const markCopied = () => {
-      setCopiedId(key);
-      setTimeout(() => setCopiedId(null), 1500);
-    };
-
-    // Fallback for browsers/contexts where the async Clipboard API is denied
-    const fallbackCopy = () => {
-      const el = document.createElement("textarea");
-      el.value = id;
-      el.setAttribute("readonly", "");
-      el.style.position = "fixed";
-      el.style.opacity = "0";
-      document.body.appendChild(el);
-      el.select();
-      try {
-        document.execCommand("copy");
-      } catch {
-        /* ignore */
-      }
-      document.body.removeChild(el);
-      markCopied();
-    };
-
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(id).then(markCopied).catch(fallbackCopy);
-    } else {
-      fallbackCopy();
-    }
-  };
+  const [institutions, setInstitutions] = useState(null);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([getLandStats(), listLandRecords({ limit: 5 })])
-      .then(([statsRes, listRes]) => {
-        // A response that is not the expected shape must not reach the
-        // render: `records.length` on a non-array throws inside React and
-        // unmounts the whole tree, which the user sees as a blank page.
-        const stats = statsRes.data;
-        setStats(stats && typeof stats === "object" ? stats : {});
-        const list = listRes.data;
-        setRecent(Array.isArray(list?.records) ? list.records : []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    let alive = true;
+    async function load() {
+      try {
+        const countOf = async (status) => {
+          const res = await listCertificates({ limit: 1, ...(status ? { status } : {}) });
+          return res.data.total ?? 0;
+        };
+        const [total, active, revoked, expired, superseded, recentRes] = await Promise.all([
+          countOf(null), countOf("active"), countOf("revoked"), countOf("expired"), countOf("superseded"),
+          listCertificates({ limit: 6 }),
+        ]);
+        if (!alive) return;
+        setStats({ total, active, revoked, expired, superseded });
+        setRecent(recentRes.data.certificates || []);
+        if (isPlatformAdmin) {
+          const instRes = await listInstitutions();
+          if (alive) setInstitutions(instRes.data.institutions || []);
+        }
+      } catch (err) {
+        if (alive) setError(apiErrorMessage(err, "Could not load the dashboard"));
+      }
+    }
+    load();
+    return () => { alive = false; };
+  }, [isPlatformAdmin]);
 
-  const StatCard = ({ icon, label, value }) => (
-    <div className="stat-card">
-      <div className="stat-icon">{icon}</div>
-      <div className="stat-value">{loading ? "…" : value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  );
+  const cards = stats ? [
+    { label: isPlatformAdmin ? "Certificates (platform)" : "Certificates issued", value: stats.total, icon: <Award {...ICON} /> },
+    { label: "Active", value: stats.active, icon: <ShieldCheck {...ICON} />, tone: "success" },
+    { label: "Revoked", value: stats.revoked, icon: <Ban {...ICON} />, tone: "danger" },
+    { label: "Expired", value: stats.expired, icon: <Clock {...ICON} />, tone: "warning" },
+  ] : [];
+
+  const instCounts = institutions ? {
+    total: institutions.length,
+    approved: institutions.filter((i) => i.verificationStatus === "approved").length,
+    pending: institutions.filter((i) => i.verificationStatus === "pending").length,
+  } : null;
 
   return (
     <Layout title="Dashboard">
-      {/* Premium Headline */}
       <div className="dashboard-headline">
-        <h2>Every deed is the permanent record,<br />Every owner is protected.</h2>
+        <h2>{user.institution?.name || (isPlatformAdmin ? "CertiChain platform" : "Welcome")}</h2>
+        <p>
+          {ROLE_LABELS[user.role] || user.role}
+          {user.institution?.verificationStatus && user.institution.verificationStatus !== "approved" && (
+            <span className="badge badge-warning">Institution {user.institution.verificationStatus}</span>
+          )}
+        </p>
       </div>
 
-      <div className="stats-grid">
-        <StatCard icon={<Landmark {...STAT_ICON} />} label="Parcels" value={stats.parcels} />
-        <StatCard icon={<ScrollText {...STAT_ICON} />} label="Records" value={stats.records} />
-        <StatCard icon={<ArrowLeftRight {...STAT_ICON} />} label="Transfers" value={stats.transfers} />
-        <StatCard icon={<ShieldAlert {...STAT_ICON} />} label="Revoked" value={stats.revoked} />
-      </div>
+      {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="card" style={{ marginTop: 24 }}>
-        <h2 className="section-title">Recent Records</h2>
-        {recent.length === 0 ? (
-          <div className="empty-state">
-            {loading ? "Loading…" : <>No land records yet. <a href="/register">Register your first deed →</a></>}
-          </div>
-        ) : (
-          <table className="cert-table">
-            <thead>
-              <tr><th>Land ID</th><th>Owner</th><th>Location</th><th>Document</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              {recent.map(r => (
-                <tr key={r.recordId}>
-                  <td>
-                    <span className="id-cell">
-                      <code>{r.landId}</code>
-                      <button
-                        type="button"
-                        className="copy-btn"
-                        title={copiedId === r.recordId ? "Copied" : "Copy Land ID"}
-                        aria-label="Copy Land ID"
-                        onClick={() => copyId(r.landId, r.recordId)}
-                      >
-                        {copiedId === r.recordId
-                          ? <Check size={14} strokeWidth={2} />
-                          : <Copy size={14} strokeWidth={1.75} />}
-                      </button>
-                    </span>
-                  </td>
-                  <td>{r.currentOwnerName || r.currentOwnerId}</td>
-                  <td>{[r.village, r.district].filter(Boolean).join(", ") || "—"}</td>
-                  <td>{r.documentType || "—"}</td>
-                  <td>
-                    <span className={`badge ${r.status === "revoked" ? "badge-revoked" : "badge-active"}`}>
-                      {r.status === "revoked" ? "REVOKED" : "ACTIVE"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <div style={{ marginTop: 16 }}>
-          <a href="/records" className="btn btn-outline">
-            View All Records <ArrowRight size={16} strokeWidth={1.75} />
-          </a>
+      {!stats && !error && <p className="muted">Loading statistics…</p>}
+
+      {stats && (
+        <div className="stats-grid">
+          {cards.map((c) => (
+            <div key={c.label} className={`stat-card ${c.tone ? `stat-${c.tone}` : ""}`}>
+              <div className="stat-icon">{c.icon}</div>
+              <div className="stat-value">{c.value}</div>
+              <div className="stat-label">{c.label}</div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* Quick Action Cards */}
+      {instCounts && (
+        <div className="stats-grid stats-grid-secondary">
+          <div className="stat-card">
+            <div className="stat-icon"><Building2 {...ICON} /></div>
+            <div className="stat-value">{instCounts.total}</div>
+            <div className="stat-label">Institutions</div>
+          </div>
+          <div className="stat-card stat-success">
+            <div className="stat-icon"><ShieldCheck {...ICON} /></div>
+            <div className="stat-value">{instCounts.approved}</div>
+            <div className="stat-label">Approved</div>
+          </div>
+          <div className="stat-card stat-warning">
+            <div className="stat-icon"><Clock {...ICON} /></div>
+            <div className="stat-value">{instCounts.pending}</div>
+            <div className="stat-label">Pending review</div>
+          </div>
+        </div>
+      )}
+
       <div className="action-grid">
-        <a href="/register" className="action-card">
-          <ArrowUpRight size={16} strokeWidth={1.75} className="action-corner" aria-hidden="true" />
-          <span className="action-icon"><FileUp size={30} strokeWidth={1.75} /></span>
-          <strong>Register Deed</strong>
-          <small>Encrypt, link and record on-chain</small>
-        </a>
-        <a href="/records" className="action-card">
-          <ArrowUpRight size={16} strokeWidth={1.75} className="action-corner" aria-hidden="true" />
-          <span className="action-icon"><FolderOpen size={30} strokeWidth={1.75} /></span>
-          <strong>Land Records</strong>
-          <small>Search, open deeds, revoke</small>
-        </a>
-        <a href="/verify" className="action-card">
-          <ArrowUpRight size={16} strokeWidth={1.75} className="action-corner" aria-hidden="true" />
-          <span className="action-icon"><ScanSearch size={30} strokeWidth={1.75} /></span>
-          <strong>Verify Land</strong>
-          <small>Public ownership timeline</small>
-        </a>
+        {["issuer", "institution_admin"].includes(user.role) && (
+          <Link to="/issue" className="action-card">
+            <span className="action-icon"><FileUp {...ICON} /></span>
+            <strong>Issue a certificate</strong>
+            <small>Upload, review, sign with MetaMask</small>
+          </Link>
+        )}
+        <Link to="/certificates" className="action-card">
+          <span className="action-icon"><Award {...ICON} /></span>
+          <strong>Certificate registry</strong>
+          <small>Search, inspect, revoke, reissue</small>
+        </Link>
+        <Link to="/verify" className="action-card">
+          <span className="action-icon"><ScanSearch {...ICON} /></span>
+          <strong>Verify a certificate</strong>
+          <small>Chain-authoritative public check</small>
+        </Link>
       </div>
 
-      {/* Bottom Declaration */}
-      <div className="dashboard-declaration">
-        <p>Fake it until you make it — ends here.</p>
+      <div className="card">
+        <div className="section-title-row">
+          <h3 className="section-title">Recent certificates</h3>
+          <Link to="/certificates" className="btn btn-sm btn-outline">
+            View all <ArrowRight size={14} strokeWidth={1.75} aria-hidden />
+          </Link>
+        </div>
+        {recent.length === 0 ? (
+          <p className="muted">No certificates yet. Issued certificates appear here with their live status.</p>
+        ) : (
+          <div className="table-wrapper">
+            <table className="cert-table">
+              <thead>
+                <tr>
+                  <th>Certificate ID</th><th>Holder</th><th>Type</th><th>Issued</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((c) => (
+                  <tr key={c.certificateId} className="row-click" onClick={() => navigate(`/certificates/${c.certificateId}`)}>
+                    <td className="id-cell mono">{c.certificateId}</td>
+                    <td>{c.holderName}</td>
+                    <td>{typeLabel(c.certificateType)}</td>
+                    <td>{formatDate(c.issueDate || c.createdAt)}</td>
+                    <td><span className={statusBadgeClass(c.status)}>{STATUS_LABELS[c.status] || c.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      <p className="dashboard-declaration">
+        Every certificate is anchored on Polygon Amoy. Verification reads the chain first —
+        the database alone can never make a certificate authentic.
+      </p>
     </Layout>
   );
 }
