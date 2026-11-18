@@ -111,7 +111,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, async () => {
     console.log(`\n[shutdown] ${signal} — closing the OCR worker`);
     try {
-      const { shutdownExtraction } = await import("./services/ai.js");
+      const { shutdownExtraction } = await import("./services/certificateExtraction.js");
       await shutdownExtraction();
     } catch {
       /* the worker is going away anyway */

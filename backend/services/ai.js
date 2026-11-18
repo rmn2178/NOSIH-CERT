@@ -1,8 +1,10 @@
 /**
  * AI Service — Land Deed Field Extraction (Gemini)
  *
- * PDF only. Four strategies, tried in the order listed in
- * EXTRACTION_STRATEGIES below, each falling through to the next on failure:
+ * LEGACY: kept only for the land routes until they are retired (P6).
+ * The CertiChain pipeline lives in certificateExtraction.js.
+ *
+ * PDF only. Two strategies, tried in order, falling through on failure:
  *
  *   1. Text layer     → Gemini structures the extracted text.
  *                       Exact, cheap, and no rendering at all.
@@ -10,8 +12,9 @@
  *      → text dump      dump is what goes to Gemini, against a fixed JSON
  *                       schema. The model never sees an image, so the payload
  *                       stays small and the pixels stay on the server.
- *   3. Whole PDF      → Gemini reads the original file itself, untouched.
- *   4. Rendered pages → Gemini reads the page images. The last resort.
+ *
+ * The whole-PDF-base64 and rendered-vision strategies were DELETED per the
+ * CertiChain spec: Gemini receives extracted text only.
  *
  * The strategy that answered is logged as `[ai] strategy: <id>`, and the ids
  * come from that one exported list — the checks read the same list, so a
@@ -44,8 +47,6 @@ const require = createRequire(import.meta.url);
 export const EXTRACTION_STRATEGIES = [
   { id: "text-layer", name: "The text layer", leaves: "the PDF's own text layer" },
   { id: "local-ocr", name: "Local OCR → text dump", leaves: "an OCR text dump — no pixels leave the server" },
-  { id: "whole-pdf", name: "The whole PDF", leaves: "the original PDF, base64" },
-  { id: "rendered-vision", name: "Rendered pages", leaves: "rendered page images, base64" },
 ];
 
 /**
@@ -149,9 +150,7 @@ function getPDFParse() {
 // gemini-3.6-flash is the fastest model answering reliably (3.8 hangs).
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 45000);
-// Reading a whole PDF takes longer than reading a page image.
-const GEMINI_PDF_TIMEOUT_MS = Number(process.env.GEMINI_PDF_TIMEOUT_MS || 60000);
-const MAX_VISION_PAGES = 3;
+const MAX_OCR_PAGES = 3;
 
 // A busy model answers 503. Retrying once or twice is the difference between
 // a deed that reads and a deed that does not.
@@ -256,7 +255,7 @@ async function generateContent(parts, timeoutMs = GEMINI_TIMEOUT_MS, deadline = 
  * Whether a failure no other strategy can recover from.
  *
  * A missing key, a rejected key, a disabled API or a malformed request will
- * fail identically on all four paths. Trying the remaining three only spends
+ * fail identically on both paths. Trying the other one only spends
  * the budget and, on the scanned path, renders and recognises pages for
  * nothing. The chain stops at once and says why in the log.
  */
@@ -333,7 +332,7 @@ export const RESPONSE_SCHEMA = {
 /**
  * The returnable schema's rules.
  *
- * One block, shared by all three model calls, so a digital deed, an OCR text
+ * One block, shared by both model calls, so a digital deed and an OCR text
  * dump and a page image are all held to the same contract. The fraction rule
  * is here because a survey number like 1963/3000 is one identifier, not a
  * number plus a subdivision, and splitting it silently corrupts the record.
@@ -427,14 +426,6 @@ export async function extractDeedMetadataParallel(filePath, originalname = "deed
         return await structureWithGemini(text, "the deed's own text layer", deadline);
       }
     });
-    
-    // Backup: whole PDF
-    strategies.push({
-      id: "whole-pdf",
-      priority: 3,
-      delayMs: 3000,
-      fn: () => extractWithGeminiPdf(filePath, deadline)
-    });
   }
   
   if (profile.isScanned && ocrAvailable() && canvasTextAvailable()) {
@@ -447,27 +438,6 @@ export async function extractDeedMetadataParallel(filePath, originalname = "deed
         const { text: ocrText } = await ocrImages(buffers);
         if (!ocrText || ocrText.length < 40) throw new Error("OCR produced too little text");
         return await structureWithGemini(ocrText, "a scanned image", deadline);
-      }
-    });
-  }
-  
-  if (!profile.hasTextLayer || profile.isScanned) {
-    if (!strategies.some(s => s.id === "whole-pdf")) {
-      strategies.push({
-        id: "whole-pdf",
-        priority: 3,
-        delayMs: 4000,
-        fn: () => extractWithGeminiPdf(filePath, deadline)
-      });
-    }
-    
-    strategies.push({
-      id: "rendered-vision",
-      priority: 4,
-      delayMs: 6000,
-      fn: async () => {
-        const pageImages = await renderPdfPages(filePath);
-        return await extractWithGeminiVision(pageImages, deadline);
       }
     });
   }
@@ -596,31 +566,10 @@ export async function extractDeedMetadata(filePath, originalname = "deed.pdf") {
     }
   }
 
-  // ── 3. The whole PDF ──────────────────────────────────
-  // The fallback for a scan this server could not read: no OCR engine, no
-  // usable canvas, or a recognition pass that produced nothing. Gemini reads
-  // the original file directly, so no rendering is needed on this path.
-  if (withinBudget()) {
-    try {
-      const result = await timed("gemini whole-pdf", () => extractWithGeminiPdf(filePath, deadline));
-      reportStrategy("whole-pdf", "the original file read by the model");
-      return result;
-    } catch (err) {
-      strategyFailed("whole-PDF extraction", err);
-    }
-  }
-
-  // ── 4. Rendered pages, read as images ────────────────
-  if (withinBudget()) {
-    try {
-      const pageImages = await timed("render pages", () => renderPdfPages(filePath));
-      const result = await timed("gemini vision", () => extractWithGeminiVision(pageImages, deadline));
-      reportStrategy("rendered-vision", `${pageImages.length} page image(s)`);
-      return result;
-    } catch (err) {
-      strategyFailed("vision extraction", err);
-    }
-  }
+  // ── 3. Nothing else ───────────────────────────────────
+  // The whole-PDF and rendered-vision fallbacks were deleted per the
+  // CertiChain spec: Gemini receives extracted text only. A scan this
+  // server cannot read falls through to manual entry below.
 
   throw new Error(MANUAL_ENTRY);
 }
@@ -628,7 +577,7 @@ export async function extractDeedMetadata(filePath, originalname = "deed.pdf") {
 /**
  * Runs a step and logs how long it took.
  *
- * The extraction chain has four strategies and only the log says which one
+ * The extraction chain has two strategies and only the log says which one
  * answered. The timings are what make a slow deployment diagnosable.
  */
 async function timed(label, fn) {
@@ -658,21 +607,20 @@ async function tryPdfTextLayer(filePath) {
 }
 
 /**
- * Renders the first pages to JPEG buffers.
+ * Renders the first pages to JPEG buffers for the local OCR engine.
  *
- * JPEG rather than PNG because it encodes several times faster and both
- * consumers — the OCR engine and the vision model — read it happily. The
- * render happens once and the result is shared.
+ * JPEG rather than PNG because it encodes several times faster and the OCR
+ * engine reads it happily. The pixels never leave this server.
  */
 async function renderPdfPageBuffers(filePath) {
   const pdfToPng = await getPdfToPng();
   const sharp = await getSharp();
   const pages = await pdfToPng(filePath, {
     viewportScale: 2.0,
-    pagesToProcess: Array.from({ length: MAX_VISION_PAGES }, (_, i) => i + 1),
+    pagesToProcess: Array.from({ length: MAX_OCR_PAGES }, (_, i) => i + 1),
   });
   const out = [];
-  for (const page of pages.slice(0, MAX_VISION_PAGES)) {
+  for (const page of pages.slice(0, MAX_OCR_PAGES)) {
     const jpeg = await sharp(page.content)
       .resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 90 })
@@ -680,55 +628,6 @@ async function renderPdfPageBuffers(filePath) {
     out.push(jpeg);
   }
   return out;
-}
-
-/** Renders the first pages to Gemini image parts. */
-async function renderPdfPages(filePath) {
-  const buffers = await renderPdfPageBuffers(filePath);
-  return buffers.map((jpeg) => ({
-    inlineData: { data: jpeg.toString("base64"), mimeType: "image/jpeg" },
-  }));
-}
-
-async function extractWithGeminiVision(imageParts, deadline = Infinity) {
-  const prompt = `You are a precise land-deed data extractor. These are pages of a registered property deed. Read them and return a single JSON object with exactly these keys, and no others:
-
-${FIELD_SPEC}
-
-${SCHEMA_RULES}`;
-  const result = await generateContent([prompt, ...imageParts], GEMINI_TIMEOUT_MS, deadline);
-  return parseGeminiJsonResponse(result.response.text());
-}
-
-/**
- * Sends the whole PDF to Gemini.
- *
- * The document's SHA-256 travels with it, so the model can refer to the exact
- * file it was given and the server can tie the answer back to the bytes that
- * will be hashed and registered.
- */
-async function extractWithGeminiPdf(filePath, deadline = Infinity) {
-  const crypto = await import("node:crypto");
-  const pdf = fs.readFileSync(filePath);
-  const hash = crypto.createHash("sha256").update(pdf).digest("hex");
-
-  const prompt = `You are a precise land-deed data extractor. The attached document is a registered property deed. It may be a scan with no text layer — read it from the images. Return a single JSON object with exactly these keys, and no others:
-
-${FIELD_SPEC}
-
-${SCHEMA_RULES}
-
-The SHA-256 of this exact file is ${hash}.`;
-
-  const result = await generateContent(
-    [
-      prompt,
-      { inlineData: { mimeType: "application/pdf", data: pdf.toString("base64") } },
-    ],
-    GEMINI_PDF_TIMEOUT_MS,
-    deadline
-  );
-  return parseGeminiJsonResponse(result.response.text());
 }
 
 /**

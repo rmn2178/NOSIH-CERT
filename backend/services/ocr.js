@@ -2,7 +2,7 @@
  * Local OCR — turns a rendered page into a text dump.
  *
  * The text dump is what leaves this module. The AI model is never shown an
- * image: it receives plain text and returns the deed's fields as JSON
+ * image: it receives plain text and returns the document's fields as JSON
  * against a fixed schema. That keeps the payload small, the model call fast,
  * and the pixels on the server.
  *
@@ -28,6 +28,31 @@ const require = createRequire(import.meta.url);
 
 /** How long a single page may take before it is abandoned. */
 const OCR_TIMEOUT_MS = Number(process.env.OCR_TIMEOUT_MS || 60000);
+
+/**
+ * How many pages may be recognised at once across ALL requests.
+ * The worker is a single thread; unbounded concurrent recognize calls queue
+ * inside it and blow per-page timeouts under load. The semaphore keeps the
+ * queue explicit and bounded.
+ */
+const OCR_MAX_CONCURRENT = Math.max(1, Number(process.env.OCR_MAX_CONCURRENT || 2));
+
+let ocrActive = 0;
+const ocrWaiters = [];
+
+function acquireOcrSlot() {
+  if (ocrActive < OCR_MAX_CONCURRENT) {
+    ocrActive++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => ocrWaiters.push(resolve));
+}
+
+function releaseOcrSlot() {
+  const next = ocrWaiters.shift();
+  if (next) next(); // slot ownership passes to the waiter
+  else ocrActive--;
+}
 
 /** The language to recognise. */
 const OCR_LANG = process.env.OCR_LANG || "eng";
@@ -169,20 +194,25 @@ registerOcrEngine("tesseract", async (imageBuffer) => {
  * @returns {Promise<{ text: string, engine: string }>}
  */
 export async function ocrImage(imageBuffer) {
-  let lastError = null;
+  await acquireOcrSlot();
+  try {
+    let lastError = null;
 
-  for (const [name, engine] of engines) {
-    try {
-      const text = await engine.run(imageBuffer);
-      if (text && text.trim()) return { text: text.trim(), engine: name };
-      lastError = new Error(`${name} returned no text`);
-    } catch (err) {
-      lastError = err;
-      console.warn(`[ocr] ${name} failed: ${err.message}`);
+    for (const [name, engine] of engines) {
+      try {
+        const text = await engine.run(imageBuffer);
+        if (text && text.trim()) return { text: text.trim(), engine: name };
+        lastError = new Error(`${name} returned no text`);
+      } catch (err) {
+        lastError = err;
+        console.warn(`[ocr] ${name} failed: ${err.message}`);
+      }
     }
-  }
 
-  throw lastError || new Error("no OCR engine is registered");
+    throw lastError || new Error("no OCR engine is registered");
+  } finally {
+    releaseOcrSlot();
+  }
 }
 
 /**
