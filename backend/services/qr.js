@@ -1,6 +1,8 @@
 /**
- * QR generation — PNG with the Land ID printed under the code.
- * The QR encodes the public verify URL for the parcel.
+ * QR generation — PNG with the human ID printed under the code.
+ * CertiChain: the QR encodes the public verify URL for the certificate
+ * (/verify?certificateId=CERT-XXXXXXXX) — a phone camera opens it directly.
+ * Legacy land functions remain until the land routes are retired (P7).
  */
 
 import "../env.js"; // loads the repository-root .env — must come first
@@ -46,13 +48,14 @@ export function buildVerifyUrl(landId, req) {
   return `${verifyBaseFrom(req)}?landId=${encodeURIComponent(landId)}`;
 }
 
+export function buildCertificateVerifyUrl(certificateId, req) {
+  return `${verifyBaseFrom(req)}?certificateId=${encodeURIComponent(certificateId)}`;
+}
+
 const escapeXml = (s) => String(s).replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/**
- * @returns {{ verifyUrl: string, qrDataUrl: string, png: Buffer }}
- */
-export async function generateLandQr(landId, req) {
-  const verifyUrl = buildVerifyUrl(landId, req);
+/** Shared compositor: QR + ID label + tagline, graphite on white. */
+async function makeLabeledQr(verifyUrl, humanId, tagline) {
   const qrPng = await QRCode.toBuffer(verifyUrl, {
     width: QR_SIZE,
     margin: 2,
@@ -64,9 +67,9 @@ export async function generateLandQr(landId, req) {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${QR_SIZE}" height="${LABEL_HEIGHT}">
       <rect width="100%" height="100%" fill="#FFFFFF"/>
       <text x="50%" y="34" text-anchor="middle" font-family="Consolas, 'Courier New', monospace"
-            font-size="30" font-weight="700" fill="#1E2126">${escapeXml(landId)}</text>
+            font-size="30" font-weight="700" fill="#1E2126">${escapeXml(humanId)}</text>
       <text x="50%" y="64" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
-            font-size="16" fill="#6B7079">NOSIH Land Registry · scan to verify</text>
+            font-size="16" fill="#6B7079">${escapeXml(tagline)}</text>
     </svg>`
   );
 
@@ -82,4 +85,21 @@ export async function generateLandQr(landId, req) {
     .toBuffer();
 
   return { verifyUrl, png, qrDataUrl: `data:image/png;base64,${png.toString("base64")}` };
+}
+
+/**
+ * CertiChain certificate QR.
+ * @returns {{ verifyUrl: string, qrDataUrl: string, png: Buffer }}
+ */
+export async function generateCertificateQr(certificateId, req) {
+  return makeLabeledQr(
+    buildCertificateVerifyUrl(certificateId, req),
+    certificateId,
+    "CertiChain · scan to verify"
+  );
+}
+
+/** Legacy land QR — retired with the land routes in P7. */
+export async function generateLandQr(landId, req) {
+  return makeLabeledQr(buildVerifyUrl(landId, req), landId, "NOSIH Land Registry · scan to verify");
 }
