@@ -3,7 +3,7 @@
  *
  * Proves:
  *  - the Express app boots with the certificates router mounted and the
- *    legacy land/verify routes retired (404)
+ *    legacy land routes retired (404) and the P7 public verify mounted
  *  - every issuance endpoint demands authentication (401 before any work)
  *  - a valid JWT passes protect and surfaces the DB outage as 500 (never a
  *    simulated success)
@@ -95,9 +95,14 @@ await check("legacy /api/land is retired (404)", async () => {
   assert(status === 404, `expected 404, got ${status}`);
 });
 
-await check("legacy /api/verify is unmounted until P7 (404)", async () => {
-  const { status } = await api("GET", "/api/verify/land/LAND-0000000000");
-  assert(status === 404, `expected 404, got ${status}`);
+await check("P7 verify is mounted, public, and legacy land-verify path is gone", async () => {
+  // Old land route must not exist under the new public verify router.
+  const legacy = await api("GET", "/api/verify/land/LAND-0000000000");
+  assert(legacy.status === 404, `expected 404 for legacy path, got ${legacy.status}`);
+  // New certificate verify answers publicly (no auth); without chain config
+  // in this gate it must be 503 indeterminate — never a fake verdict.
+  const modern = await api("GET", "/api/verify/CERT-8A91F203");
+  assert(modern.status === 503, `expected 503 indeterminate, got ${modern.status}`);
 });
 
 await check("routes/land.js is deleted", () => {

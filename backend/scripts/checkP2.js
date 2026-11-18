@@ -272,13 +272,12 @@ check("brief §8 certificate columns all present", () => {
 
 check("mapper ↔ schema cross-check (every row.<col> exists in schema.sql)", () => {
   const supabaseSrc = readFileSync(path.join(backendDir, "supabase.js"), "utf8");
-  // CertiChain mappers only: userFromRow … certificateEventFromRow.
-  // Legacy land mappers (ownerFromRow/landRecordFromRow) reference land
-  // columns that intentionally live outside the CertiChain schema.
+  // CertiChain mappers only: userFromRow … end of file. The legacy land
+  // mappers were retired in P7 together with the land services.
   const start = supabaseSrc.indexOf("export function userFromRow");
-  const end = supabaseSrc.indexOf("export function ownerFromRow");
-  assert(start !== -1 && end !== -1 && end > start, "mapper block not found in supabase.js");
-  const mapperSrc = supabaseSrc.slice(start, end);
+  assert(start !== -1, "mapper block not found in supabase.js");
+  assert(!/ownerFromRow|landRecordFromRow/.test(supabaseSrc), "legacy land mappers must be retired");
+  const mapperSrc = supabaseSrc.slice(start);
   const schemaCols = new Set(
     [...schema.matchAll(/^\s+([a-z_]+)\s+(?:uuid|text|char|boolean|timestamptz|jsonb|bigint|date|numeric)/gm)].map((m) => m[1])
   );

@@ -16,9 +16,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes        from "./routes/auth.js";
 import institutionRoutes from "./routes/institutions.js";
 import certificateRoutes from "./routes/certificates.js";
-// The legacy land routes are retired (server-side issuance signing is
-// forbidden in CertiChain). Public chain-authoritative verification is
-// rebuilt in P7 at /api/verify.
+import verifyRoutes      from "./routes/verify.js";
 
 const envAudit = auditEnv();
 
@@ -29,6 +27,10 @@ if (!envAudit.ok) {
 }
 
 const app = express();
+
+// Behind Vercel's proxy: trust the first hop so rate limiting keys on the
+// real client IP (X-Forwarded-For), not the platform's internal address.
+app.set("trust proxy", 1);
 
 // ── CORS ─────────────────────────────────────────────────
 // FRONTEND_URL accepts a comma-separated list (production + preview URLs).
@@ -88,6 +90,7 @@ app.use((req, res, next) => {
 app.use("/api/auth",         authRoutes);
 app.use("/api/institutions", institutionRoutes);
 app.use("/api/certificates", certificateRoutes);
+app.use("/api/verify",       verifyRoutes); // public, rate-limited, chain-authoritative
 
 // 404 handler
 app.use((_, res) => res.status(404).json({ error: "Route not found" }));

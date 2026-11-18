@@ -57,6 +57,7 @@ import {
   computeDocumentHash,
   computeMetadataHash,
   computeHolderIdentityHash,
+  computeRevocationReasonHash,
   encryptCertificate,
   decryptCertificate,
   ZERO,
@@ -73,6 +74,7 @@ import {
   getContractAddress,
   verifyIssuanceReceipt,
   readCertificate,
+  revokeCertificateOnChain,
 } from "../services/blockchain.js";
 
 const router = Router();
@@ -247,7 +249,7 @@ router.post(
         .eq("certificate_number", fields.certificateNumber)
         .maybeSingle();
       if (numErr) throw httpError(500, numErr.message);
-      if (dupNumber) {
+      if (dupNumber && dupNumber.certificate_id !== supersedesCertificateId) {
         throw httpError(409, `Certificate number ${fields.certificateNumber} is already registered by your institution (${dupNumber.certificate_id}). Use reissue to correct it.`);
       }
 
@@ -772,6 +774,130 @@ router.get(
       res.setHeader("Content-Disposition", `attachment; filename="${row.certificate_id}-QR.png"`);
     }
     res.send(png);
+  })
+);
+
+// ── Revocation (D2: platform admin OR owning institution admin) ──
+// The ONLY server-side chain write. Signed with the dedicated REVOKE_PRIVATE_KEY
+// (REVOKER_ROLE) — never an issuer's browser key. Only the reason HASH goes
+// on-chain; the explanation stays private in certificate_events.
+
+const revokeSchema = Joi.object({
+  reason: Joi.string().trim().min(3).max(1000).required(),
+});
+
+router.post(
+  "/:certificateId/revoke",
+  protect,
+  loadCurrentUser,
+  requireRoles("platform_admin", "institution_admin"),
+  asyncHandler(async (req, res) => {
+    const { error: validationError, value } = revokeSchema.validate(req.body ?? {});
+    if (validationError) throw httpError(400, "A revocation reason is required (3–1000 characters)");
+
+    const row = await loadScopedCertificate(req); // institution scoping enforced
+    if (row.status === "revoked") throw httpError(409, `${row.certificate_id} is already revoked`);
+
+    // Chain state first — it is authoritative for revocation.
+    const chain = await readCertificate(row.certificate_id_hash);
+    if (!chain) throw httpError(409, `${row.certificate_id} is not confirmed on-chain, so it cannot be revoked`);
+
+    const reasonHash = computeRevocationReasonHash(value.reason);
+    let txHash = row.revoked_tx_hash || null;
+
+    if (!chain.revoked) {
+      // Missing REVOKE_PRIVATE_KEY → ChainConfigError → clear 503, never fake success.
+      const result = await revokeCertificateOnChain(row.certificate_id_hash, reasonHash);
+      txHash = result.txHash;
+    }
+    // chain.revoked already true → reconciliation path: complete the DB mirror
+    // of a revocation that landed on-chain but was not persisted (retry-safe).
+
+    const revokedAt = new Date().toISOString();
+    const { error: updateErr } = await supabase
+      .from("certificates")
+      .update({ status: "revoked", revoked_at: revokedAt, revoke_reason: value.reason, revoked_tx_hash: txHash })
+      .eq("certificate_id", row.certificate_id);
+    if (updateErr) {
+      console.error(`[revoke] DB mirror failed after chain revocation of ${row.certificate_id}:`, updateErr.message);
+      return res.status(500).json({
+        error: "The certificate is revoked on-chain but the database mirror failed. Retry revoke — it reconciles safely.",
+        certificateId: row.certificate_id,
+        txHash,
+        recovery: `POST /api/certificates/${row.certificate_id}/revoke with the same reason`,
+      });
+    }
+
+    try {
+      await supabase.from("certificate_events").insert({
+        certificate_id: row.certificate_id,
+        event_type: "revoked",
+        performed_by: req.userId,
+        institution_id: row.institution_id,
+        reason: value.reason, // private — never on-chain
+        transaction_hash: txHash,
+        previous_status: row.status,
+        new_status: "revoked",
+      });
+    } catch (err) {
+      console.warn(`[revoke] audit event warning for ${row.certificate_id}:`, err.message);
+    }
+
+    console.log(`[revoke] ✓ ${row.certificate_id} revoked (${txHash})`);
+    res.json({ certificateId: row.certificate_id, status: "revoked", txHash, revokedAt });
+  })
+);
+
+// ── Reissuance prefill (D8) ──────────────────────────────
+// Returns the old approved metadata so IssuePage can prefill a NEW prepare
+// with supersedesCertificateId. The old chain record is never modified; the
+// supersede link is written when the new certificate confirms (P6 confirm).
+
+router.post(
+  "/:certificateId/reissue",
+  protect,
+  loadCurrentUser,
+  requireRoles("issuer", "institution_admin"),
+  asyncHandler(async (req, res) => {
+    const row = await loadScopedCertificate(req);
+    if (row.status === "revoked") {
+      throw httpError(400, "A revoked certificate cannot be reissued — issue a new certificate instead");
+    }
+    if (row.superseded_by_certificate_id) {
+      throw httpError(409, `${row.certificate_id} was already superseded by ${row.superseded_by_certificate_id}`);
+    }
+
+    res.json({
+      supersedesCertificateId: row.certificate_id,
+      fields: {
+        certificateType: row.certificate_type,
+        certificateNumber: row.certificate_number ?? "",
+        holderName: row.holder_name,
+        holderIdentifier: row.holder_identifier ?? "",
+        institutionName: row.institutions?.name ?? "",
+        institutionAddress: row.institutions?.address ?? "",
+        courseName: row.course_name ?? "",
+        qualification: row.qualification ?? "",
+        qualificationLevel: row.qualification_level ?? "",
+        specialization: row.specialization ?? "",
+        grade: row.grade ?? "",
+        percentage: row.percentage ?? "",
+        issueDate: row.issue_date ?? "",
+        expiryDate: row.expiry_date ?? "",
+        academicYear: row.academic_year ?? "",
+        signatoryName: row.signatory_name ?? "",
+        signatoryDesignation: row.signatory_designation ?? "",
+      },
+      extraData: row.extra_data ?? {},
+      target: {
+        certificateId: row.certificate_id,
+        holderName: row.holder_name,
+        certificateType: row.certificate_type,
+        status: row.status,
+        txHash: row.tx_hash,
+      },
+      note: "Upload the corrected PDF and run prepare with supersedesCertificateId. The original stays on-chain untouched; verification of the old id will point to the new one.",
+    });
   })
 );
 

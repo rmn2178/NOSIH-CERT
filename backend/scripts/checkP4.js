@@ -320,7 +320,9 @@ await check("missing GEMINI_API_KEY → clear 503, never simulated success", asy
 console.log("\n[6] Source-level guarantees");
 
 await check("no whole-pdf / vision code remains anywhere", () => {
-  for (const file of ["services/gemini.js", "services/certificateExtraction.js", "services/pdfParser.js", "services/ai.js"]) {
+  // The legacy ai.js was deleted in P7 — its absence is itself asserted.
+  assert(!fs.existsSync(path.join(backendDir, "services/ai.js")), "legacy services/ai.js must be deleted");
+  for (const file of ["services/gemini.js", "services/certificateExtraction.js", "services/pdfParser.js"]) {
     const src = fs.readFileSync(path.join(backendDir, file), "utf8");
     assert(!src.includes("inlineData"), `${file} contains inlineData`);
     assert(!/extractWithGeminiPdf|extractWithGeminiVision|renderPdfPages\b/.test(src), `${file} contains a deleted vision/pdf function`);

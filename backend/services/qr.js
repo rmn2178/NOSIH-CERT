@@ -2,7 +2,6 @@
  * QR generation — PNG with the human ID printed under the code.
  * CertiChain: the QR encodes the public verify URL for the certificate
  * (/verify?certificateId=CERT-XXXXXXXX) — a phone camera opens it directly.
- * Legacy land functions remain until the land routes are retired (P7).
  */
 
 import "../env.js"; // loads the repository-root .env — must come first
@@ -42,10 +41,6 @@ export function verifyBaseFrom(req) {
 
   if (host && !/^https?:\/\//.test(host)) return `${proto}://${host}/verify`;
   return configured || "http://localhost:3000/verify";
-}
-
-export function buildVerifyUrl(landId, req) {
-  return `${verifyBaseFrom(req)}?landId=${encodeURIComponent(landId)}`;
 }
 
 export function buildCertificateVerifyUrl(certificateId, req) {
@@ -97,9 +92,4 @@ export async function generateCertificateQr(certificateId, req) {
     certificateId,
     "CertiChain · scan to verify"
   );
-}
-
-/** Legacy land QR — retired with the land routes in P7. */
-export async function generateLandQr(landId, req) {
-  return makeLabeledQr(buildVerifyUrl(landId, req), landId, "NOSIH Land Registry · scan to verify");
 }
