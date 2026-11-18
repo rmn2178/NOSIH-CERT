@@ -4,12 +4,20 @@ import { supabase } from "../supabase.js";
 
 const BCRYPT_ROUNDS = 12;
 
+/**
+ * Seeds (or repairs) the CertiChain platform admin from ADMIN_EMAIL /
+ * ADMIN_PASSWORD in the root .env. Idempotent: re-running rotates the
+ * password and guarantees the platform_admin role.
+ */
 async function seedAdmin() {
   const email = (process.env.ADMIN_EMAIL || "").toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
 
   if (!email || !password) {
     throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required in the root .env");
+  }
+  if (password.length < 8) {
+    throw new Error("ADMIN_PASSWORD must be at least 8 characters");
   }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -25,24 +33,24 @@ async function seedAdmin() {
     const { error } = await supabase.from("users").insert({
       email,
       password_hash: passwordHash,
-      role: "admin",
+      role: "platform_admin",
       active: true,
-      organization_name: "NOSIH",
+      organization_name: "CertiChain",
     });
     if (error) throw new Error(error.message);
-    console.log(`Created admin user: ${email}`);
+    console.log(`Created platform admin: ${email}`);
   } else {
     const { error } = await supabase
       .from("users")
       .update({
         password_hash: passwordHash,
-        role: "admin",
+        role: "platform_admin",
         active: true,
-        organization_name: existing.organization_name || "NOSIH",
+        organization_name: existing.organization_name || "CertiChain",
       })
       .eq("id", existing.id);
     if (error) throw new Error(error.message);
-    console.log(`Updated admin user: ${email}`);
+    console.log(`Updated platform admin: ${email}`);
   }
 }
 

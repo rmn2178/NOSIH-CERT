@@ -36,12 +36,12 @@ export const REQUIRED_ENV = [
   {
     name: "DOCUMENT_ENC_KEY",
     test: (v) => HEX64.test(v),
-    hint: "32-byte hex key used to encrypt deed PDFs (back it up — losing it loses every deed)",
+    hint: "32-byte hex key used to encrypt certificate PDFs (back it up — losing it loses every stored certificate)",
   },
   {
     name: "HASH_PEPPER",
     test: (v) => HEX64.test(v),
-    hint: "32-byte hex key mixed into Land ID and owner hashes (back it up)",
+    hint: "32-byte hex key mixed into holder/institution identity hashes (back it up)",
   },
 ];
 

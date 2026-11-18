@@ -1,5 +1,5 @@
 /**
- * NOSIH backend entry point.
+ * CertiChain backend entry point.
  *
  * Local:      node server.js  (listens on PORT)
  * Vercel:     imported by the zero-config Express runtime, which uses the
@@ -8,12 +8,15 @@
 import "./env.js"; // loads the repository-root .env — must come first
 import express from "express";
 import cors from "cors";
-import { MAX_UPLOAD_MB } from "./config.js";
 
 import { supabaseBootError } from "./supabase.js"; // connects + validates at boot
 import { auditEnv, describeProblems } from "./envCheck.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
-import authRoutes   from "./routes/auth.js";
+import authRoutes        from "./routes/auth.js";
+import institutionRoutes from "./routes/institutions.js";
+// Legacy land routes stay mounted until their CertiChain replacements land
+// (certificates in P6, chain-authoritative verify in P7).
 import landRoutes   from "./routes/land.js";
 import verifyRoutes from "./routes/verify.js";
 
@@ -82,22 +85,16 @@ app.use((req, res, next) => {
 });
 
 // ── Routes ───────────────────────────────────────────────
-app.use("/api/auth",   authRoutes);
-app.use("/api/land",   landRoutes);
-app.use("/api/verify", verifyRoutes);
+app.use("/api/auth",        authRoutes);
+app.use("/api/institutions", institutionRoutes);
+app.use("/api/land",        landRoutes);   // legacy — retired in P6
+app.use("/api/verify",      verifyRoutes); // legacy — replaced in P7
 
 // 404 handler
 app.use((_, res) => res.status(404).json({ error: "Route not found" }));
 
-// Global error handler (multer file-type / size errors land here)
-app.use((err, _req, res, _next) => {
-  console.error("[Error]", err.message);
-  if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ error: `File is too large (max ${MAX_UPLOAD_MB} MB)` });
-  }
-  const status = err.status || 500;
-  res.status(status).json({ error: err.message || "Internal server error" });
-});
+// Global error handler (multer / Joi / Postgres violations land here)
+app.use(errorHandler);
 
 // ── Start (local only) ───────────────────────────────────
 if (!process.env.VERCEL) {
