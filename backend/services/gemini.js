@@ -1,7 +1,7 @@
 /**
  * Gemini client — TEXT ONLY, by construction.
  *
- * The CertiChain spec is explicit: JavaScript libraries extract the PDF's
+ * The NOSIH spec is explicit: JavaScript libraries extract the PDF's
  * contents first (text layer, then local OCR); Gemini receives the resulting
  * TEXT and structures it. The whole-PDF-base64 and rendered-image-vision
  * paths that existed in the land system are deleted, not disabled — this

@@ -33,7 +33,7 @@ const BROKEN = {
 
 // The server writes to a log file rather than a pipe: on Windows, killing a
 // child while its stdout pipe is still open trips a libuv assertion.
-const logPath = path.join(os.tmpdir(), `certichain-boot-report-${process.pid}.log`);
+const logPath = path.join(os.tmpdir(), `nosih-boot-report-${process.pid}.log`);
 const logFd = fs.openSync(logPath, "w");
 
 const child = spawn(process.execPath, ["server.js"], {

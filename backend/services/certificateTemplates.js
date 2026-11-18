@@ -1,7 +1,7 @@
 /**
  * Certificate field contract — the single source of truth.
  *
- * The 17 base fields come from the CertiChain spec. Both the Gemini prompt
+ * The 17 base fields come from the NOSIH spec. Both the Gemini prompt
  * text and the API responseSchema are DERIVED from these descriptions, so a
  * field cannot be described one way to the model and enforced another.
  *

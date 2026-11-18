@@ -6,7 +6,7 @@ import {
 import CertificateUpload from "../components/CertificateUpload";
 import { tamperCheckPublic, apiErrorMessage } from "../utils/api";
 import { shortHex, formatDateTime } from "../utils/certificateHelpers";
-import logo from "../assets/certichain-logo.svg";
+import logo from "../assets/nosih-logo.svg";
 import "./styles.css";
 
 const CERT_RE = /^CERT-[0-9A-F]{8}$/i;
@@ -72,7 +72,7 @@ export default function TamperPage() {
   return (
     <div className="verify-wrapper">
       <header className="verify-header">
-        <img src={logo} alt="CertiChain logo" className="logo-img" />
+        <img src={logo} alt="NOSIH logo" className="logo-img" />
         <h1>Document Integrity Check</h1>
         <p>Prove a PDF is the exact registered document — hashes only, no AI.</p>
       </header>
@@ -174,7 +174,7 @@ export default function TamperPage() {
 
       <footer className="verify-footer">
         <Link to="/verify"><ArrowLeft {...ICON} /> Back to verification</Link>
-        <span>CertiChain · integrity is proven with hashes, never with AI</span>
+        <span>NOSIH · integrity is proven with hashes, never with AI</span>
       </footer>
     </div>
   );

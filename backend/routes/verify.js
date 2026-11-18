@@ -1,5 +1,5 @@
 /**
- * CertiChain public verification routes — NO authentication, rate-limited.
+ * NOSIH public verification routes — NO authentication, rate-limited.
  *
  * GET  /api/verify/:certificateId               chain-authoritative verdict
  * POST /api/verify/:certificateId/tamper-check  Mode A (no file) / Mode B (PDF)

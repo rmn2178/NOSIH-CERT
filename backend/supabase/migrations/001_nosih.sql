@@ -1,14 +1,14 @@
 -- ═══════════════════════════════════════════════════════════════════
--- CertiChain migration 001 — land registry → certificate authentication
+-- NOSIH migration 001 — land registry → certificate authentication
 --
 -- ADDITIVE and NON-DESTRUCTIVE:
---   * Creates the CertiChain tables alongside the existing NOSIH tables.
+--   * Creates the certificate tables alongside the existing NOSIH tables.
 --   * land_records / owners and ALL their data are left untouched.
 --   * users is extended (institution_id + new roles); existing rows kept,
 --     legacy 'admin' is mapped to 'platform_admin'.
 --
 -- BEFORE RUNNING: take a backup (Supabase Dashboard → Database → Backups,
--- or `pg_dump "$DATABASE_URL" > backup-pre-certichain.sql`).
+-- or `pg_dump "$DATABASE_URL" > backup-pre-nosih.sql`).
 -- Run once in the Supabase SQL editor. Safe to re-run (idempotent).
 -- ═══════════════════════════════════════════════════════════════════
 

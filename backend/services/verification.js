@@ -1,5 +1,5 @@
 /**
- * CertiChain verification service — CHAIN-AUTHORITATIVE.
+ * NOSIH verification service — CHAIN-AUTHORITATIVE.
  *
  * The blockchain decides: existence, issuer, fingerprints, revocation,
  * timestamps. Supabase supplies the approved public metadata and the

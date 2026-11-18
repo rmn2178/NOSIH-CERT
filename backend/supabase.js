@@ -63,14 +63,14 @@ if (supabaseConfigError) {
     console.log("✅ Supabase connected");
   }
 
-  // CertiChain tables are created by migrations/001_certichain.sql (existing
+  // NOSIH tables are created by migrations/001_nosih.sql (existing
   // installs) or schema.sql (fresh installs) — warn, don't exit, so auth and
   // the health check keep answering while the migration is pending.
   for (const table of ["institutions", "certificates", "issuance_intents"]) {
     const { error: tableError } = await supabase.from(table).select("id").limit(1);
     if (tableError) {
       console.warn(`⚠️  ${table} table not reachable:`, tableError.message);
-      console.warn("   Run backend/supabase/migrations/001_certichain.sql in the Supabase SQL editor.");
+      console.warn("   Run backend/supabase/migrations/001_nosih.sql in the Supabase SQL editor.");
     }
   }
 }

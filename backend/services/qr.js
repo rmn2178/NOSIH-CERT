@@ -1,6 +1,6 @@
 /**
  * QR generation — PNG with the human ID printed under the code.
- * CertiChain: the QR encodes the public verify URL for the certificate
+ * NOSIH: the QR encodes the public verify URL for the certificate
  * (/verify?certificateId=CERT-XXXXXXXX) — a phone camera opens it directly.
  */
 
@@ -83,13 +83,13 @@ async function makeLabeledQr(verifyUrl, humanId, tagline) {
 }
 
 /**
- * CertiChain certificate QR.
+ * NOSIH certificate QR.
  * @returns {{ verifyUrl: string, qrDataUrl: string, png: Buffer }}
  */
 export async function generateCertificateQr(certificateId, req) {
   return makeLabeledQr(
     buildCertificateVerifyUrl(certificateId, req),
     certificateId,
-    "CertiChain · scan to verify"
+    "NOSIH · scan to verify"
   );
 }

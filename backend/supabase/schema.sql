@@ -1,6 +1,6 @@
--- CertiChain — Supabase schema (certificate authentication platform)
+-- NOSIH — Supabase schema (certificate authentication platform)
 -- Fresh installs: run this once in the Supabase SQL editor. Safe to re-run.
--- EXISTING NOSIH installs: run migrations/001_certichain.sql instead —
+-- EXISTING NOSIH installs: run migrations/001_nosih.sql instead —
 -- it adds these tables additively and preserves the land-registry data.
 
 -- ── Users (platform admins / institution admins / issuers / auditors) ──

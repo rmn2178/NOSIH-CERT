@@ -1,5 +1,5 @@
 /**
- * Wallet credit report for CertiChain on Polygon Amoy — READ-ONLY.
+ * Wallet credit report for NOSIH on Polygon Amoy — READ-ONLY.
  *
  *   node scripts/check-gas.mjs
  *

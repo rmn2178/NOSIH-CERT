@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ScanSearch, FileSearch, ArrowRight } from "lucide-react";
 import VerificationResult from "../components/VerificationResult";
 import { verifyCertificatePublic, apiErrorMessage } from "../utils/api";
-import logo from "../assets/certichain-logo.svg";
+import logo from "../assets/nosih-logo.svg";
 import "./styles.css";
 
 const CERT_RE = /^CERT-[0-9A-F]{8}$/i;
@@ -65,8 +65,8 @@ export default function VerifyPage() {
   return (
     <div className="verify-wrapper">
       <header className="verify-header">
-        <img src={logo} alt="CertiChain logo" className="logo-img" />
-        <h1>CertiChain Verification</h1>
+        <img src={logo} alt="NOSIH logo" className="logo-img" />
+        <h1>NOSIH Verification</h1>
         <p>Check any certificate against the blockchain record — no account required.</p>
       </header>
 
@@ -103,7 +103,7 @@ export default function VerifyPage() {
 
       <footer className="verify-footer">
         <Link to="/login">Institution sign in <ArrowRight size={14} strokeWidth={1.75} aria-hidden /></Link>
-        <span>CertiChain · hashes on Polygon Amoy · documents encrypted on IPFS</span>
+        <span>NOSIH · hashes on Polygon Amoy · documents encrypted on IPFS</span>
       </footer>
     </div>
   );

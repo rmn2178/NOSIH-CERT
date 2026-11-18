@@ -68,7 +68,7 @@ const frontend = readEnvFile(path.join("frontend", ".env.local"));
 // VERIFY_BASE_URL, BACKEND_PUBLIC_URL, ADMIN_*, DEPLOYER_PRIVATE_KEY) stays
 // local — Vercel sets VERCEL itself and derives the public URL from the
 // request host. DEPLOYER_PRIVATE_KEY is a local hardhat key: NEVER pushed.
-// There is no ISSUER_PRIVATE_KEY in CertiChain — issuance is MetaMask-only.
+// There is no ISSUER_PRIVATE_KEY in NOSIH — issuance is MetaMask-only.
 const REQUIRED = [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",

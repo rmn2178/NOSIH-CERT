@@ -774,6 +774,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 32px 20px;
   background: var(--bg-main);
 }
 
@@ -781,8 +782,9 @@ textarea:focus {
   position: relative;
   background: var(--surface);
   border-radius: 16px;
-  padding: 40px;
-  width: 400px;
+  padding: 36px 34px 26px;
+  width: 420px;
+  max-width: 100%;
   box-shadow: 0 20px 60px rgba(30, 33, 38, 0.07);
   border: 1px solid var(--card-border);
   animation: fadeIn 0.6s ease both;
@@ -790,7 +792,7 @@ textarea:focus {
 
 .auth-logo {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 26px;
 }
 
 .logo-icon {
@@ -806,23 +808,32 @@ textarea:focus {
   mix-blend-mode: multiply;
 }
 
+.auth-logo .logo-img {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+}
+
 .auth-logo h1 {
-  font-size: 1.9rem;
+  font-size: 1.45rem;
   font-weight: 700;
-  margin: 8px 0 4px;
+  margin: 0 0 4px;
   color: var(--text-primary);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.14em;
 }
 
 .auth-logo p {
   color: var(--text-muted);
-  font-size: 1rem;
+  font-size: .82rem;
+  letter-spacing: .02em;
 }
 
 .auth-links {
   text-align: center;
-  margin-top: 16px;
-  font-size: .85rem;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+  font-size: .84rem;
 }
 
 /* ── Verify Pages ─────────────────────────────────────── */
@@ -1198,8 +1209,8 @@ textarea:focus {
   }
 
   .auth-card {
-    width: 90%;
-    padding: 28px;
+    width: 100%;
+    padding: 28px 22px 22px;
   }
 
   .dashboard-headline h2 {
@@ -1338,7 +1349,7 @@ textarea:focus {
 .badge-stack { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .badge-neutral { background: var(--surface-sunken); color: var(--text-primary); }
 /* ══════════════════════════════════════════════════════════
-   CertiChain P8 — issue flow, wallet, modals, verification
+   NOSIH P8 — issue flow, wallet, modals, verification
    Graphite & soft-white tokens only (see :root).
    ══════════════════════════════════════════════════════════ */
 
@@ -1386,16 +1397,41 @@ textarea:focus {
 /* ── Auth tabs + note ── */
 .auth-tabs {
   display: flex; gap: 4px; background: var(--surface-sunken);
-  border-radius: var(--radius); padding: 4px; margin-bottom: 18px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius); padding: 4px; margin-bottom: 22px;
 }
 .auth-tab {
-  flex: 1; padding: 8px 10px; border: none; border-radius: 8px;
+  flex: 1; padding: 9px 10px; border: none; border-radius: 8px;
   background: transparent; color: var(--text-muted);
-  font-weight: 600; font-size: .85rem; cursor: pointer;
+  font-weight: 600; font-size: .84rem; cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
+.auth-tab:hover:not(.active) { color: var(--text-primary); }
 .auth-tab.active { background: var(--card-bg); color: var(--text-primary); box-shadow: var(--shadow-card); }
-.auth-note { font-size: .78rem; color: var(--text-muted); margin-top: 10px; text-align: center; }
-.auth-links a { display: inline-flex; align-items: center; gap: 6px; }
+.auth-group {
+  font-size: .68rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--premium-accent);
+  margin: 20px 0 10px;
+}
+.auth-tabs + form .auth-group:first-child { margin-top: 2px; }
+.auth-card .field { margin-bottom: 14px; gap: 5px; }
+.auth-card .field label { font-size: .7rem; letter-spacing: .07em; }
+.auth-card input {
+  background: var(--surface-muted);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: .92rem;
+}
+.auth-card input::placeholder { color: #9BA1AA; }
+.auth-card .alert { font-size: .85rem; margin: 4px 0 14px; }
+.auth-card .btn-primary.full-width {
+  margin-top: 8px; padding: 12px 22px;
+  border-radius: 10px; font-size: .92rem;
+}
+.auth-note { font-size: .76rem; color: var(--text-muted); margin-top: 12px; text-align: center; line-height: 1.5; }
+.auth-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-action); font-weight: 500; text-decoration: none; }
+.auth-links a:hover { text-decoration: underline; }
 
 /* ── Dashboard stat tones ── */
 .stats-grid-secondary { margin-top: -6px; }

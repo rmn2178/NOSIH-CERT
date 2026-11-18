@@ -24,7 +24,7 @@ function buildPdf() {
       "/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
   ];
-  const stream = "BT /F1 24 Tf 30 100 Td (CertiChain render check) Tj ET";
+  const stream = "BT /F1 24 Tf 30 100 Td (NOSIH render check) Tj ET";
   objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
 
   let body = "%PDF-1.4\n";

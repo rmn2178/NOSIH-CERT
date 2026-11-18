@@ -43,7 +43,7 @@ if (health) {
 const login = await fetch(`${BACKEND}/api/auth/login`, {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({ email: "probe@certichain.test", password: "probe-password" }),
+  body: JSON.stringify({ email: "probe@nosih.test", password: "probe-password" }),
 }).then(async (res) => ({ status: res.status, body: await res.json() })).catch(() => null);
 check("login route answers readable 503 envelope (never simulated success)", login?.status === 503 && Boolean(login?.body?.error || login?.body?.problems), `HTTP ${login?.status}`);
 
@@ -54,9 +54,9 @@ const HTML = { Accept: "text/html" };
 const home = await poll(async () => {
   const res = await fetch(`${FRONTEND}/`, { headers: HTML });
   const text = await res.text();
-  return res.status === 200 && /CertiChain/.test(text) ? { status: res.status, text } : null;
+  return res.status === 200 && /NOSIH/.test(text) ? { status: res.status, text } : null;
 }, 180000);
-check("SPA serves / with CertiChain branding", Boolean(home));
+check("SPA serves / with NOSIH branding", Boolean(home));
 
 const verify = await fetch(`${FRONTEND}/verify`, { headers: HTML }).then((r) => r.status).catch(() => 0);
 check("SPA serves the public /verify route", verify === 200, `HTTP ${verify}`);

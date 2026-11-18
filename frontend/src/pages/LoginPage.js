@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ScanSearch } from "lucide-react";
 import { login, applyInstitution, apiErrorMessage } from "../utils/api";
-import logo from "../assets/certichain-logo.svg";
+import logo from "../assets/nosih-logo.svg";
 import "./styles.css";
 
 /**
@@ -60,8 +60,8 @@ export default function LoginPage() {
     <div className="auth-wrapper">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src={logo} alt="CertiChain logo" className="logo-img" />
-          <h1>CertiChain</h1>
+          <img src={logo} alt="NOSIH logo" className="logo-img" />
+          <h1>NOSIH</h1>
           <p>Decentralized Certificate Authentication</p>
         </div>
 
@@ -79,11 +79,11 @@ export default function LoginPage() {
           </div>
         ) : (
           <>
-            <div className="auth-tabs">
-              <button type="button" className={`auth-tab ${mode === "login" ? "active" : ""}`} onClick={() => { setMode("login"); setError(""); }}>
+            <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+              <button type="button" role="tab" aria-selected={mode === "login"} className={`auth-tab ${mode === "login" ? "active" : ""}`} onClick={() => { setMode("login"); setError(""); }}>
                 Sign in
               </button>
-              <button type="button" className={`auth-tab ${mode === "apply" ? "active" : ""}`} onClick={() => { setMode("apply"); setError(""); }}>
+              <button type="button" role="tab" aria-selected={mode === "apply"} className={`auth-tab ${mode === "apply" ? "active" : ""}`} onClick={() => { setMode("apply"); setError(""); }}>
                 Register institution
               </button>
             </div>
@@ -100,11 +100,12 @@ export default function LoginPage() {
                 </div>
                 {error && <div className="alert alert-error">{error}</div>}
                 <button type="submit" className="btn btn-primary full-width" disabled={loading}>
-                  {loading ? "Signing in…" : "Sign In"}
+                  {loading ? "Signing in…" : "Sign in"}
                 </button>
               </form>
             ) : (
               <form onSubmit={handleApply}>
+                <p className="auth-group">Institution</p>
                 <div className="field">
                   <label>Institution name</label>
                   <input value={app.name} onChange={setField("name")} required minLength={2} maxLength={200} placeholder="National Institute of Technology" />
@@ -119,15 +120,16 @@ export default function LoginPage() {
                 </div>
                 <div className="field">
                   <label>Address (optional)</label>
-                  <input value={app.address} onChange={setField("address")} maxLength={500} />
+                  <input value={app.address} onChange={setField("address")} maxLength={500} placeholder="City, state / country" />
                 </div>
+                <p className="auth-group">Admin account</p>
                 <div className="field">
                   <label>Admin email</label>
-                  <input type="email" value={app.adminEmail} onChange={setField("adminEmail")} required placeholder="admin@institution.edu" />
+                  <input type="email" value={app.adminEmail} onChange={setField("adminEmail")} required placeholder="admin@institution.edu" autoComplete="email" />
                 </div>
                 <div className="field">
                   <label>Admin password</label>
-                  <input type="password" value={app.adminPassword} onChange={setField("adminPassword")} required minLength={8} maxLength={128} autoComplete="new-password" />
+                  <input type="password" value={app.adminPassword} onChange={setField("adminPassword")} required minLength={8} maxLength={128} autoComplete="new-password" placeholder="At least 8 characters" />
                 </div>
                 {error && <div className="alert alert-error">{error}</div>}
                 <button type="submit" className="btn btn-primary full-width" disabled={loading}>

@@ -1,5 +1,5 @@
 /**
- * CertiChain certificate routes — the prepare → sign → confirm handshake.
+ * NOSIH certificate routes — the prepare → sign → confirm handshake.
  *
  * POST /api/certificates/extract              PDF → AI-suggested metadata (never proof)
  * POST /api/certificates/issue/prepare        encrypt + pin + intent; returns the MetaMask call
@@ -144,7 +144,7 @@ router.post(
   asyncHandler(async (req, res) => {
     if (!req.file) throw httpError(400, "Upload a PDF certificate in the 'document' field");
 
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "certichain-"));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nosih-"));
     const filePath = path.join(dir, "upload.pdf");
     try {
       fs.writeFileSync(filePath, req.file.buffer);

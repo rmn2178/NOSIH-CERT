@@ -30,7 +30,7 @@ const IPFS_CID = "bafyVerifyTestCid";
 // A small PDF-shaped buffer: magic bytes + deterministic content. The
 // verification path never parses PDF structure — it hashes exact bytes.
 const PDF_BYTES = Buffer.from(
-  "%PDF-1.4\nCertiChain verification fixture — original registered bytes\n%%EOF\n" + "x".repeat(512)
+  "%PDF-1.4\nNOSIH verification fixture — original registered bytes\n%%EOF\n" + "x".repeat(512)
 );
 const sha256 = (buf) => "0x" + crypto.createHash("sha256").update(buf).digest("hex");
 
@@ -382,7 +382,7 @@ describe("Verification service — chain-authoritative (P7)", function () {
     expect(result.chainDocumentHash).to.equal(sha256(PDF_BYTES));
     const serialized = JSON.stringify(result);
     expect(serialized).to.not.contain(PDF_BYTES.toString("base64"));
-    expect(serialized).to.not.contain("CertiChain verification fixture");
+    expect(serialized).to.not.contain("NOSIH verification fixture");
   });
 
   // 14. Mode A — corrupted ciphertext fails GCM authentication (never "intact")

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 /**
- * CertiChain API client.
+ * NOSIH API client.
  *
  * Authenticated calls carry the sessionStorage JWT; the public verification
  * endpoints work without one. Every error that reaches the UI must go through

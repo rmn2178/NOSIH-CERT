@@ -33,7 +33,7 @@ const { makeCertificateFixtures } = await import(
 );
 
 const given = process.argv[2];
-const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "certichain-extract-"));
+const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nosih-extract-"));
 
 let cases;
 if (given) {

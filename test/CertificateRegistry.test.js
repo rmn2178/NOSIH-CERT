@@ -69,11 +69,11 @@ describe("CertificateRegistry", () => {
     expect(await registry.getIssuerInstitution(stranger.address)).to.equal(INST_B);
     expect(await registry.hasRole(ISSUER_ROLE, stranger.address)).to.equal(true);
     await expect(registry.authorizeIssuer(ethers.ZeroAddress, INST_A))
-      .to.be.revertedWith("CertiChain: zero issuer address");
+      .to.be.revertedWith("NOSIH: zero issuer address");
     await expect(registry.authorizeIssuer(stranger.address, ethers.ZeroHash))
-      .to.be.revertedWith("CertiChain: empty institution identity");
+      .to.be.revertedWith("NOSIH: empty institution identity");
     await expect(registry.authorizeIssuer(stranger.address, INST_A))
-      .to.be.revertedWith("CertiChain: issuer already authorized");
+      .to.be.revertedWith("NOSIH: issuer already authorized");
   });
 
   // 4. Issuer removal
@@ -86,7 +86,7 @@ describe("CertificateRegistry", () => {
     await expect(registry.connect(issuerA).issueCertificate(cert()))
       .to.be.revertedWithCustomError(registry, "AccessControlUnauthorizedAccount");
     await expect(registry.removeIssuer(issuerA.address))
-      .to.be.revertedWith("CertiChain: issuer not authorized");
+      .to.be.revertedWith("NOSIH: issuer not authorized");
   });
 
   // 5. Valid certificate issuance
@@ -108,9 +108,9 @@ describe("CertificateRegistry", () => {
     expect(stored.exists).to.equal(true);
     // invalid payloads are rejected
     await expect(registry.connect(issuerA).issueCertificate(cert({ certificateIdHash: id("CERT-EMPTY01"), documentHash: ethers.ZeroHash })))
-      .to.be.revertedWith("CertiChain: empty documentHash");
+      .to.be.revertedWith("NOSIH: empty documentHash");
     await expect(registry.connect(issuerA).issueCertificate(cert({ certificateIdHash: id("CERT-EMPTY02"), ipfsCID: "" })))
-      .to.be.revertedWith("CertiChain: empty CID");
+      .to.be.revertedWith("NOSIH: empty CID");
   });
 
   // 6. Unauthorized issuer rejection
@@ -125,18 +125,18 @@ describe("CertificateRegistry", () => {
     const c = cert();
     await registry.connect(issuerA).issueCertificate(c);
     await expect(registry.connect(issuerA).issueCertificate(c))
-      .to.be.revertedWith("CertiChain: certificate exists");
+      .to.be.revertedWith("NOSIH: certificate exists");
     // same id from a different authorized issuer is also rejected
     await expect(
       registry.connect(issuerB).issueCertificate(cert({ institutionIdHash: INST_B }))
-    ).to.be.revertedWith("CertiChain: certificate exists");
+    ).to.be.revertedWith("NOSIH: certificate exists");
   });
 
   // 8. Institution mismatch rejection
   it("rejects issuance for an institution the wallet is not bound to", async () => {
     await expect(
       registry.connect(issuerA).issueCertificate(cert({ institutionIdHash: INST_B }))
-    ).to.be.revertedWith("CertiChain: institution mismatch");
+    ).to.be.revertedWith("NOSIH: institution mismatch");
   });
 
   // 9. Certificate retrieval
@@ -144,7 +144,7 @@ describe("CertificateRegistry", () => {
     const c = cert();
     expect(await registry.certificateExists(c.certificateIdHash)).to.equal(false);
     await expect(registry.getCertificate(c.certificateIdHash))
-      .to.be.revertedWith("CertiChain: certificate not found");
+      .to.be.revertedWith("NOSIH: certificate not found");
     await registry.connect(issuerA).issueCertificate(c);
     expect(await registry.certificateExists(c.certificateIdHash)).to.equal(true);
     const stored = await registry.getCertificate(c.certificateIdHash);
@@ -166,11 +166,11 @@ describe("CertificateRegistry", () => {
     await expect(registry.connect(issuerA).revokeCertificate(c.certificateIdHash, reasonHash))
       .to.be.revertedWithCustomError(registry, "AccessControlUnauthorizedAccount");
     await expect(registry.connect(revoker).revokeCertificate(id("CERT-UNKNOWN1"), reasonHash))
-      .to.be.revertedWith("CertiChain: certificate not found");
+      .to.be.revertedWith("NOSIH: certificate not found");
     const c2 = cert({ certificateIdHash: id("CERT-19C5D871"), documentHash: id("doc-2") });
     await registry.connect(issuerA).issueCertificate(c2);
     await expect(registry.connect(revoker).revokeCertificate(c2.certificateIdHash, ethers.ZeroHash))
-      .to.be.revertedWith("CertiChain: reason hash required");
+      .to.be.revertedWith("NOSIH: reason hash required");
   });
 
   // 11. Double-revocation rejection
@@ -179,7 +179,7 @@ describe("CertificateRegistry", () => {
     await registry.connect(issuerA).issueCertificate(c);
     await registry.connect(revoker).revokeCertificate(c.certificateIdHash, id("reason"));
     await expect(registry.connect(revoker).revokeCertificate(c.certificateIdHash, id("reason-2")))
-      .to.be.revertedWith("CertiChain: already revoked");
+      .to.be.revertedWith("NOSIH: already revoked");
   });
 
   // 12. Certificate reissuance relationship
@@ -205,7 +205,7 @@ describe("CertificateRegistry", () => {
         documentHash: id("doc-x"),
         supersedesCertificateIdHash: id("CERT-NOTEXIST"),
       }))
-    ).to.be.revertedWith("CertiChain: supersedes unknown certificate");
+    ).to.be.revertedWith("NOSIH: supersedes unknown certificate");
   });
 
   // 13. Expiration information
@@ -225,7 +225,7 @@ describe("CertificateRegistry", () => {
         documentHash: id("doc-pe"),
         expiresAt: latest.timestamp - 10,
       }))
-    ).to.be.revertedWith("CertiChain: expiry in the past");
+    ).to.be.revertedWith("NOSIH: expiry in the past");
   });
 
   // 14. Event emission

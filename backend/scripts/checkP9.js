@@ -130,7 +130,7 @@ console.log("\n[3] Land retirement");
   check("no LandRegistry references in scripts/backend/contracts/test", refs.length === 0, refs.join(", "));
 
   const pkg = JSON.parse(read("package.json"));
-  check("root package renamed to certichain-contracts", pkg.name === "certichain-contracts");
+  check("root package renamed to nosih-contracts", pkg.name === "nosih-contracts");
   check("no check:tour / db:reset / land smoke scripts", !pkg.scripts["check:tour"] && !pkg.scripts["db:reset"] && !/smoke-api/.test(JSON.stringify(pkg.scripts)));
   const missingTargets = [];
   for (const [name, cmd] of Object.entries(pkg.scripts)) {
@@ -141,10 +141,10 @@ console.log("\n[3] Land retirement");
   check("issuer:remove script is wired", Boolean(pkg.scripts["issuer:remove"]));
 
   const bpkg = JSON.parse(read("backend/package.json"));
-  check("backend package renamed to certichain-backend", bpkg.name === "certichain-backend");
+  check("backend package renamed to nosih-backend", bpkg.name === "nosih-backend");
 
   const readme = read("README.md");
-  check("README is CertiChain (no land deed content)", /CertiChain/.test(readme) && !/LandRegistry|land deed|Land ID/.test(readme));
+  check("README is NOSIH (no land deed content)", /NOSIH/.test(readme) && !/LandRegistry|land deed|Land ID/.test(readme));
   check("README documents the live-write guard", readme.includes("deploy:amoy -- --yes"));
 }
 
@@ -159,7 +159,7 @@ console.log("\n[4] Backend invariants");
   for (const mount of ["/api/auth", "/api/institutions", "/api/certificates", "/api/verify"]) {
     check(`server mounts ${mount}`, server.includes(`"${mount}"`));
   }
-  const sql = read("backend/supabase/migrations/001_certichain.sql");
+  const sql = read("backend/supabase/migrations/001_nosih.sql");
   for (const table of ["institutions", "issuer_wallets", "certificates", "issuance_intents", "certificate_events"]) {
     check(`migration creates ${table}`, new RegExp(`create table if not exists ${table}`).test(sql));
   }

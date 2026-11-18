@@ -69,7 +69,7 @@ export default function DashboardPage() {
   return (
     <Layout title="Dashboard">
       <div className="dashboard-headline">
-        <h2>{user.institution?.name || (isPlatformAdmin ? "CertiChain platform" : "Welcome")}</h2>
+        <h2>{user.institution?.name || (isPlatformAdmin ? "NOSIH platform" : "Welcome")}</h2>
         <p>
           {ROLE_LABELS[user.role] || user.role}
           {user.institution?.verificationStatus && user.institution.verificationStatus !== "approved" && (

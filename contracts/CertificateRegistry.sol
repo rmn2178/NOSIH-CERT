@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title CertificateRegistry
- * @dev CertiChain — blockchain-anchored academic/professional certificates.
+ * @dev NOSIH — blockchain-anchored academic/professional certificates.
  *
  * Design notes
  * - Only hashes and pseudonymous identifiers live on-chain. Holder names,
@@ -79,9 +79,9 @@ contract CertificateRegistry is AccessControl, ReentrancyGuard {
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        require(issuer != address(0), "CertiChain: zero issuer address");
-        require(institutionIdHash != bytes32(0), "CertiChain: empty institution identity");
-        require(issuerInstitution[issuer] == bytes32(0), "CertiChain: issuer already authorized");
+        require(issuer != address(0), "NOSIH: zero issuer address");
+        require(institutionIdHash != bytes32(0), "NOSIH: empty institution identity");
+        require(issuerInstitution[issuer] == bytes32(0), "NOSIH: issuer already authorized");
         issuerInstitution[issuer] = institutionIdHash;
         _grantRole(ISSUER_ROLE, issuer);
         emit IssuerAuthorized(issuer, institutionIdHash);
@@ -89,7 +89,7 @@ contract CertificateRegistry is AccessControl, ReentrancyGuard {
 
     function removeIssuer(address issuer) external onlyRole(DEFAULT_ADMIN_ROLE) {
         bytes32 institutionIdHash = issuerInstitution[issuer];
-        require(institutionIdHash != bytes32(0), "CertiChain: issuer not authorized");
+        require(institutionIdHash != bytes32(0), "NOSIH: issuer not authorized");
         delete issuerInstitution[issuer];
         _revokeRole(ISSUER_ROLE, issuer);
         emit IssuerRemoved(issuer, institutionIdHash);
@@ -109,22 +109,22 @@ contract CertificateRegistry is AccessControl, ReentrancyGuard {
         nonReentrant
     {
         bytes32 boundInstitution = issuerInstitution[msg.sender];
-        require(boundInstitution != bytes32(0), "CertiChain: issuer not bound");
-        require(cert.institutionIdHash == boundInstitution, "CertiChain: institution mismatch");
-        require(cert.certificateIdHash != bytes32(0), "CertiChain: empty certificateIdHash");
-        require(cert.holderIdentityHash != bytes32(0), "CertiChain: empty holderIdentityHash");
-        require(cert.documentHash != bytes32(0), "CertiChain: empty documentHash");
-        require(cert.metadataHash != bytes32(0), "CertiChain: empty metadataHash");
-        require(bytes(cert.ipfsCID).length > 0, "CertiChain: empty CID");
-        require(!certificates[cert.certificateIdHash].exists, "CertiChain: certificate exists");
+        require(boundInstitution != bytes32(0), "NOSIH: issuer not bound");
+        require(cert.institutionIdHash == boundInstitution, "NOSIH: institution mismatch");
+        require(cert.certificateIdHash != bytes32(0), "NOSIH: empty certificateIdHash");
+        require(cert.holderIdentityHash != bytes32(0), "NOSIH: empty holderIdentityHash");
+        require(cert.documentHash != bytes32(0), "NOSIH: empty documentHash");
+        require(cert.metadataHash != bytes32(0), "NOSIH: empty metadataHash");
+        require(bytes(cert.ipfsCID).length > 0, "NOSIH: empty CID");
+        require(!certificates[cert.certificateIdHash].exists, "NOSIH: certificate exists");
         if (cert.supersedesCertificateIdHash != bytes32(0)) {
             require(
                 certificates[cert.supersedesCertificateIdHash].exists,
-                "CertiChain: supersedes unknown certificate"
+                "NOSIH: supersedes unknown certificate"
             );
         }
         if (cert.expiresAt != 0) {
-            require(cert.expiresAt > block.timestamp, "CertiChain: expiry in the past");
+            require(cert.expiresAt > block.timestamp, "NOSIH: expiry in the past");
         }
 
         Certificate storage s = certificates[cert.certificateIdHash];
@@ -168,9 +168,9 @@ contract CertificateRegistry is AccessControl, ReentrancyGuard {
         nonReentrant
     {
         Certificate storage s = certificates[certificateIdHash];
-        require(s.exists, "CertiChain: certificate not found");
-        require(!s.revoked, "CertiChain: already revoked");
-        require(reasonHash != bytes32(0), "CertiChain: reason hash required");
+        require(s.exists, "NOSIH: certificate not found");
+        require(!s.revoked, "NOSIH: already revoked");
+        require(reasonHash != bytes32(0), "NOSIH: reason hash required");
         s.revoked = true;
         revocationReasonHash[certificateIdHash] = reasonHash;
         emit CertificateRevoked(certificateIdHash, msg.sender, reasonHash);
@@ -185,7 +185,7 @@ contract CertificateRegistry is AccessControl, ReentrancyGuard {
         view
         returns (Certificate memory)
     {
-        require(certificates[certificateIdHash].exists, "CertiChain: certificate not found");
+        require(certificates[certificateIdHash].exists, "NOSIH: certificate not found");
         return certificates[certificateIdHash];
     }
 

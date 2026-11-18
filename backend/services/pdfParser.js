@@ -1,7 +1,7 @@
 /**
  * PDF parsing — validation, JavaScript text extraction, page rendering.
  *
- * Stage 1–3 of the CertiChain extraction pipeline. Everything here runs on
+ * Stage 1–3 of the NOSIH extraction pipeline. Everything here runs on
  * the server; the only thing that may leave is the extracted TEXT (see
  * gemini.js). Native modules are loaded lazily so a platform-level binary
  * problem cannot kill the whole function at import time.

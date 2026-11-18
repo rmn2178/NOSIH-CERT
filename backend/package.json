@@ -1,7 +1,7 @@
 {
-  "name": "certichain-backend",
+  "name": "nosih-backend",
   "version": "1.0.0",
-  "description": "CertiChain — decentralized certificate authentication API",
+  "description": "NOSIH — decentralized certificate authentication API",
   "main": "server.js",
   "type": "module",
   "engines": {

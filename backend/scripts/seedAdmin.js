@@ -5,7 +5,7 @@ import { supabase } from "../supabase.js";
 const BCRYPT_ROUNDS = 12;
 
 /**
- * Seeds (or repairs) the CertiChain platform admin from ADMIN_EMAIL /
+ * Seeds (or repairs) the NOSIH platform admin from ADMIN_EMAIL /
  * ADMIN_PASSWORD in the root .env. Idempotent: re-running rotates the
  * password and guarantees the platform_admin role.
  */
@@ -35,7 +35,7 @@ async function seedAdmin() {
       password_hash: passwordHash,
       role: "platform_admin",
       active: true,
-      organization_name: "CertiChain",
+      organization_name: "NOSIH",
     });
     if (error) throw new Error(error.message);
     console.log(`Created platform admin: ${email}`);
@@ -46,7 +46,7 @@ async function seedAdmin() {
         password_hash: passwordHash,
         role: "platform_admin",
         active: true,
-        organization_name: existing.organization_name || "CertiChain",
+        organization_name: existing.organization_name || "NOSIH",
       })
       .eq("id", existing.id);
     if (error) throw new Error(error.message);

@@ -255,7 +255,7 @@ describe("Issuance handshake — backend blockchain service (P6)", function () {
     // the receipt still verifies (issuance happened), but reads show revoked.
     await expect(
       registry.connect(revoker).revokeCertificate(CERT_HASH, reasonHash)
-    ).to.be.revertedWith("CertiChain: already revoked");
+    ).to.be.revertedWith("NOSIH: already revoked");
   });
 
   // 12. Error taxonomy — missing config is a clear 503, never a fake success

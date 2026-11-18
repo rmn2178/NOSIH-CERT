@@ -54,16 +54,16 @@ const fakeReq = (headers) => ({ get: (h) => headers[h.toLowerCase()], protocol: 
 await check("verify URL encodes certificateId", () => {
   const url = qr.buildCertificateVerifyUrl(
     "CERT-8A91F203",
-    fakeReq({ host: "certichain.example", "x-forwarded-proto": "https" })
+    fakeReq({ host: "nosih.example", "x-forwarded-proto": "https" })
   );
-  assert(url === "https://certichain.example/verify?certificateId=CERT-8A91F203", url);
+  assert(url === "https://nosih.example/verify?certificateId=CERT-8A91F203", url);
 });
 
 await check("base-URL logic: forwarded host, configured override, localhost", () => {
-  const prod = qr.verifyBaseFrom(fakeReq({ "x-forwarded-host": "app.certichain.io", "x-forwarded-proto": "https" }));
-  assert(prod === "https://app.certichain.io/verify", prod);
-  process.env.VERIFY_BASE_URL = "https://verify.certichain.io";
-  assert(qr.verifyBaseFrom(fakeReq({ host: "anything" })) === "https://verify.certichain.io", "override ignored");
+  const prod = qr.verifyBaseFrom(fakeReq({ "x-forwarded-host": "app.nosih.io", "x-forwarded-proto": "https" }));
+  assert(prod === "https://app.nosih.io/verify", prod);
+  process.env.VERIFY_BASE_URL = "https://verify.nosih.io";
+  assert(qr.verifyBaseFrom(fakeReq({ host: "anything" })) === "https://verify.nosih.io", "override ignored");
   process.env.VERIFY_BASE_URL = "http://localhost:3000";
   assert(qr.verifyBaseFrom(fakeReq({ host: "localhost:3000" })) === "http://localhost:3000", "local override lost");
   delete process.env.VERIFY_BASE_URL;
@@ -71,7 +71,7 @@ await check("base-URL logic: forwarded host, configured override, localhost", ()
 
 let qrResult = null;
 await check("generateCertificateQr → valid labelled PNG 480×564", async () => {
-  qrResult = await qr.generateCertificateQr("CERT-8A91F203", fakeReq({ host: "certichain.example" }));
+  qrResult = await qr.generateCertificateQr("CERT-8A91F203", fakeReq({ host: "nosih.example" }));
   assert(qrResult.png.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), "not a PNG");
   assert(qrResult.qrDataUrl.startsWith("data:image/png;base64,"), "not a data URI");
   const sharp = (await import("sharp")).default;

@@ -1,5 +1,5 @@
 /**
- * CertiChain environment diagnostic (read-only — no chain writes, no DB writes).
+ * NOSIH environment diagnostic (read-only — no chain writes, no DB writes).
  *
  *   node scripts/check-env.js
  *
@@ -72,7 +72,7 @@ async function main() {
   else warn("ISSUER_ADDRESS not set", "needed for npm run issuer:add (or pass the address as an argument)");
 
   if (process.env.ISSUER_PRIVATE_KEY) {
-    bad("ISSUER_PRIVATE_KEY present in .env", "CertiChain never signs issuance server-side — remove it; the key belongs in MetaMask");
+    bad("ISSUER_PRIVATE_KEY present in .env", "NOSIH never signs issuance server-side — remove it; the key belongs in MetaMask");
   }
 
   // ── Contract address (pending until deploy) ──

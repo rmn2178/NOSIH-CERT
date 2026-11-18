@@ -1,5 +1,5 @@
 /**
- * CertiChain backend entry point.
+ * NOSIH backend entry point.
  *
  * Local:      node server.js  (listens on PORT)
  * Vercel:     imported by the zero-config Express runtime, which uses the

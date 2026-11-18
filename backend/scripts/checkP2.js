@@ -226,7 +226,7 @@ check("requireRoles gates correctly", () => {
 // ── 4. SQL checks ─────────────────────────────────────────
 console.log("\n[4] SQL schema + migration");
 const schema = readFileSync(path.join(backendDir, "supabase", "schema.sql"), "utf8");
-const migration = readFileSync(path.join(backendDir, "supabase", "migrations", "001_certichain.sql"), "utf8");
+const migration = readFileSync(path.join(backendDir, "supabase", "migrations", "001_nosih.sql"), "utf8");
 const TABLES = ["users", "institutions", "issuer_wallets", "certificates", "issuance_intents", "certificate_events"];
 
 check("migration is additive: no DROP TABLE / TRUNCATE / DELETE FROM", () => {
@@ -272,7 +272,7 @@ check("brief §8 certificate columns all present", () => {
 
 check("mapper ↔ schema cross-check (every row.<col> exists in schema.sql)", () => {
   const supabaseSrc = readFileSync(path.join(backendDir, "supabase.js"), "utf8");
-  // CertiChain mappers only: userFromRow … end of file. The legacy land
+  // NOSIH mappers only: userFromRow … end of file. The legacy land
   // mappers were retired in P7 together with the land services.
   const start = supabaseSrc.indexOf("export function userFromRow");
   assert(start !== -1, "mapper block not found in supabase.js");

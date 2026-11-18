@@ -32,7 +32,7 @@ console.log(`\n── uploadToIPFS via ${mode} ──`);
 
 const started = Date.now();
 try {
-  const cid = await uploadToIPFS(Buffer.from("x"), "certichain-ipfs-test.txt", "text/plain");
+  const cid = await uploadToIPFS(Buffer.from("x"), "nosih-ipfs-test.txt", "text/plain");
   console.log(`  [PASS] uploaded 1 byte → CID ${cid}  (${Date.now() - started}ms)`);
   console.log(`  gateway: https://gateway.pinata.cloud/ipfs/${cid}`);
 

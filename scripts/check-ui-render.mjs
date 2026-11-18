@@ -147,7 +147,7 @@ const results = [];
   check("login page renders the sign-in form", Boolean(email));
   if (email) {
     const password = window.document.querySelector('input[type="password"]');
-    setInput(window, email, "admin@certichain.test");
+    setInput(window, email, "admin@nosih.test");
     setInput(window, password, "wrong-password");
     const form = email.closest("form");
     form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));

@@ -1,5 +1,5 @@
 /**
- * Certificate extraction orchestrator — the CertiChain pipeline.
+ * Certificate extraction orchestrator — the NOSIH pipeline.
  *
  *   PDF upload → validation → JavaScript text extraction → sufficiency check
  *   → (insufficient) render pages → local Tesseract OCR → combine/clean text

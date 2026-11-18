@@ -1,5 +1,5 @@
 /**
- * CertiChain blockchain service — Polygon Amoy (chain 80002).
+ * NOSIH blockchain service — Polygon Amoy (chain 80002).
  *
  * Responsibilities:
  *  - READ the CertificateRegistry (verification is chain-authoritative).

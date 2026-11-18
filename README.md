@@ -1,4 +1,4 @@
-# CertiChain
+# NOSIH
 
 Decentralized certificate authentication for academic and professional credentials.
 Institutions issue tamper-evident certificates; anyone verifies them against the
@@ -60,7 +60,7 @@ Three stores, three jobs:
 
 ```
 backend/            Express API (ESM) — routes, services, middleware
-  supabase/migrations/001_certichain.sql   additive schema migration
+  supabase/migrations/001_nosih.sql   additive schema migration
   scripts/          offline gates (checkP2…checkP8), seed, smoke, fixtures
 contracts/          CertificateRegistry.sol (OpenZeppelin AccessControl)
 test/               Hardhat suites — in-memory network only
@@ -86,7 +86,7 @@ cp .env.example .env            # fill in — see the template's comments
 ```
 
 1. **Database** — existing NOSIH project: apply
-   `backend/supabase/migrations/001_certichain.sql` in the Supabase SQL editor
+   `backend/supabase/migrations/001_nosih.sql` in the Supabase SQL editor
    (additive, idempotent — land data is preserved; take a backup first).
    Fresh project: run `backend/supabase/schema.sql` instead.
 2. **Platform admin** — `npm run seed:admin` (uses `ADMIN_EMAIL` / `ADMIN_PASSWORD`).

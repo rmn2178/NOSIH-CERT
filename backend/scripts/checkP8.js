@@ -175,9 +175,10 @@ await check("tour code is fully stripped (build-breaking imports gone)", () => {
 
 await check("land surfaces are gone from the frontend", () => {
   for (const rel of srcFiles) {
-    assert(!/\/land|verifyLand|registerDeed|extractDeed|landQrUrl|LandRecord|nosih-logo/i.test(read(rel)), `${rel} references land code`);
+    assert(!/\/land|verifyLand|registerDeed|extractDeed|landQrUrl|LandRecord/i.test(read(rel)), `${rel} references land code`);
   }
   assert(!exists("frontend/src/pages/RegisterPage.js") && !exists("frontend/src/pages/RecordsPage.js"), "land pages remain");
+  assert(exists("frontend/src/assets/nosih-logo.svg"), "NOSIH brand logo asset missing");
 });
 
 await check("no private key material anywhere in the frontend", () => {
@@ -245,7 +246,7 @@ await check("production build exists (index + bundle + css)", () => {
   assert(exists("frontend/build/index.html"), "run npm run build --prefix frontend first");
   const html = read("frontend/build/index.html");
   assert(/<div id="root">/.test(html), "root div missing");
-  assert(/CertiChain/.test(html), "branding not updated");
+  assert(/NOSIH/.test(html), "branding not updated");
   const js = [...html.matchAll(/static\/js\/[a-z0-9.]+\.js/g)].map((x) => x[0]);
   const css = [...html.matchAll(/static\/css\/[a-z0-9.]+\.css/g)].map((x) => x[0]);
   assert(js.length > 0 && css.length > 0, "bundle references missing");

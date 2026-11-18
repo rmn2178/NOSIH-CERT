@@ -1,5 +1,5 @@
 /**
- * CertiChain identity, hashing and certificate encryption.
+ * NOSIH identity, hashing and certificate encryption.
  *
  * Three hash families, same design as the audited NOSIH system:
  * - KEYED hashes (HMAC-SHA256 with HASH_PEPPER) for low-entropy identity
@@ -102,7 +102,7 @@ export const computeDocumentHash = (pdfBuffer) => {
 
 /**
  * SHA-256 over canonical approved metadata + institution identity.
- * Covers the institution binding per the CertiChain spec, so the same
+ * Covers the institution binding per the NOSIH spec, so the same
  * metadata approved by two institutions produces two different hashes.
  */
 export function computeMetadataHash(metadata, institutionIdHash) {

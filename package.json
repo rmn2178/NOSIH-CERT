@@ -1,7 +1,7 @@
 {
-  "name": "certichain-contracts",
+  "name": "nosih-contracts",
   "version": "1.0.0",
-  "description": "CertiChain — CertificateRegistry contract, deployment tooling, and live-readiness gates",
+  "description": "NOSIH — CertificateRegistry contract, deployment tooling, and live-readiness gates",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
