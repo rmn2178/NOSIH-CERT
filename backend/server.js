@@ -15,10 +15,10 @@ import { errorHandler } from "./middleware/errorHandler.js";
 
 import authRoutes        from "./routes/auth.js";
 import institutionRoutes from "./routes/institutions.js";
-// Legacy land routes stay mounted until their CertiChain replacements land
-// (certificates in P6, chain-authoritative verify in P7).
-import landRoutes   from "./routes/land.js";
-import verifyRoutes from "./routes/verify.js";
+import certificateRoutes from "./routes/certificates.js";
+// The legacy land routes are retired (server-side issuance signing is
+// forbidden in CertiChain). Public chain-authoritative verification is
+// rebuilt in P7 at /api/verify.
 
 const envAudit = auditEnv();
 
@@ -85,10 +85,9 @@ app.use((req, res, next) => {
 });
 
 // ── Routes ───────────────────────────────────────────────
-app.use("/api/auth",        authRoutes);
+app.use("/api/auth",         authRoutes);
 app.use("/api/institutions", institutionRoutes);
-app.use("/api/land",        landRoutes);   // legacy — retired in P6
-app.use("/api/verify",      verifyRoutes); // legacy — replaced in P7
+app.use("/api/certificates", certificateRoutes);
 
 // 404 handler
 app.use((_, res) => res.status(404).json({ error: "Route not found" }));
