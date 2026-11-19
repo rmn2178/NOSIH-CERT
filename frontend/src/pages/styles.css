@@ -872,10 +872,10 @@ textarea:focus {
 }
 
 .auth-logo .logo-img {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 16px;
-  border-radius: 8px;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 20px;
+  border-radius: 10px;
 }
 
 .auth-logo h1 {
