@@ -34,7 +34,9 @@ function setEnvLine(file, name, value) {
 }
 
 async function main() {
-  if (!process.argv.includes("--yes")) {
+  // --yes arrives via argv when run directly, or via NOSIH_LIVE_WRITE when
+  // launched through scripts/hardhat-live.mjs (hardhat run rejects --yes).
+  if (!process.argv.includes("--yes") && process.env.NOSIH_LIVE_WRITE !== "yes") {
     console.error("This deploys to the LIVE Polygon Amoy ledger and spends POL.");
     console.error("Re-run with --yes once the deployer wallet is funded and you approve the write:");
     console.error("  npm run deploy:amoy -- --yes");
