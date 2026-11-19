@@ -18,7 +18,7 @@ export async function loadCurrentUser(req, res, next) {
   try {
     const { data: user, error } = await supabase
       .from("users")
-      .select("*, institutions(*)")
+      .select("*, institutions!institution_id(*)")
       .eq("id", req.userId)
       .eq("active", true)
       .maybeSingle();

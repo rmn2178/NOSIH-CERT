@@ -47,7 +47,7 @@ router.post("/login", asyncHandler(async (req, res) => {
 
   const { data: user, error } = await supabase
     .from("users")
-    .select("*, institutions(*)")
+    .select("*, institutions!institution_id(*)")
     .eq("email", String(email).toLowerCase())
     .eq("active", true)
     .maybeSingle();

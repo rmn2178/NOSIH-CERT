@@ -167,7 +167,7 @@ router.get("/mine", protect, loadCurrentUser, attachOwnInstitution, (req, res) =
 router.get("/:id", protect, loadCurrentUser, requireInstitutionMember, asyncHandler(async (req, res) => {
   const [{ data: wallets }, { data: users }] = await Promise.all([
     supabase.from("issuer_wallets").select("*").eq("institution_id", req.institution.id).order("created_at"),
-    supabase.from("users").select("*, institutions(*)").eq("institution_id", req.institution.id).order("created_at"),
+    supabase.from("users").select("*, institutions!institution_id(*)").eq("institution_id", req.institution.id).order("created_at"),
   ]);
   res.json({
     institution: institutionFromRow(req.institution),
@@ -287,7 +287,7 @@ router.get(
   protect, loadCurrentUser, institutionAdminOnly, requireInstitutionMember,
   asyncHandler(async (req, res) => {
     const { data, error } = await supabase
-      .from("users").select("*, institutions(*)").eq("institution_id", req.institution.id).order("created_at");
+      .from("users").select("*, institutions!institution_id(*)").eq("institution_id", req.institution.id).order("created_at");
     if (error) return res.status(500).json({ error: error.message });
     res.json({ users: data.map(userFromRow) });
   })
@@ -321,7 +321,7 @@ router.patch(
     if (input.role !== undefined) patch.role = input.role;
 
     const { data, error } = await supabase
-      .from("users").update(patch).eq("id", target.id).select("*, institutions(*)").single();
+      .from("users").update(patch).eq("id", target.id).select("*, institutions!institution_id(*)").single();
     if (error) return res.status(500).json({ error: error.message });
     res.json({ user: userFromRow(data) });
   })

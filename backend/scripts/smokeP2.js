@@ -79,8 +79,8 @@ await step("platform admin login + /me", async () => {
 });
 
 // ── Institution applications ──────────────────────────────
-const instA = { email: `smoke-a-${suffix}@test.invalid`, password: `SmokePass-${suffix}!` };
-const instB = { email: `smoke-b-${suffix}@test.invalid`, password: `SmokePass-${suffix}!` };
+const instA = { email: `smoke-a-${suffix}@example.com`, password: `SmokePass-${suffix}!` };
+const instB = { email: `smoke-b-${suffix}@example.com`, password: `SmokePass-${suffix}!` };
 let aId = null, bId = null, aAdminToken = null, bAdminToken = null;
 
 await step("institution A applies (pending)", async () => {
@@ -119,7 +119,7 @@ await step("duplicate registration number rejected (409)", async () => {
   const { status } = await api("POST", "/api/institutions/apply", {
     body: {
       name: "Dup", registrationNumber: `SMOKE-REG-A-${suffix}`,
-      adminEmail: `dup-${suffix}@test.invalid`, adminPassword: "Whatever123!",
+      adminEmail: `dup-${suffix}@example.com`, adminPassword: "Whatever123!",
     },
   });
   assert(status === 409, `expected 409, got ${status}`);
@@ -185,7 +185,7 @@ await step("A admin creates an issuer in own institution", async () => {
   const { status, data } = await api("POST", "/api/auth/register", {
     token: aAdminToken,
     body: {
-      email: `smoke-issuer-${suffix}@test.invalid`,
+      email: `smoke-issuer-${suffix}@example.com`,
       password: `IssuerPass-${suffix}!`,
       role: "issuer",
       institutionId: bId, // adversarial: must be IGNORED, forced to A
@@ -200,14 +200,14 @@ await step("A admin creates an issuer in own institution", async () => {
 await step("A admin cannot create platform admins (403)", async () => {
   const { status } = await api("POST", "/api/auth/register", {
     token: aAdminToken,
-    body: { email: `smoke-esc-${suffix}@test.invalid`, password: "Escalate123!", role: "platform_admin" },
+    body: { email: `smoke-esc-${suffix}@example.com`, password: "Escalate123!", role: "platform_admin" },
   });
   assert(status === 403, `expected 403, got ${status}`);
 });
 
 await step("issuer login sees own institution only", async () => {
   const login = await api("POST", "/api/auth/login", {
-    body: { email: `smoke-issuer-${suffix}@test.invalid`, password: `IssuerPass-${suffix}!` },
+    body: { email: `smoke-issuer-${suffix}@example.com`, password: `IssuerPass-${suffix}!` },
   });
   assert(login.status === 200, "issuer login failed");
   const list = await api("GET", "/api/institutions", { token: login.data.token });

@@ -10,6 +10,8 @@
     "issuer:add": "hardhat run scripts/addIssuer.js --network amoy",
     "issuer:remove": "hardhat run scripts/removeIssuer.js --network amoy",
     "seed:admin": "node backend/scripts/seedAdmin.js",
+    "schema:apply": "node scripts/apply-schema.mjs",
+    "schema:migrate": "node scripts/apply-schema.mjs --migration",
     "smoke:api": "node backend/scripts/smokeP2.js",
     "check:env": "node scripts/check-env.js",
     "check:gas": "node scripts/check-gas.mjs",
