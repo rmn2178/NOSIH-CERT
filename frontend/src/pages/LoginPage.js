@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ScanSearch } from "lucide-react";
 import { login, applyInstitution, apiErrorMessage } from "../utils/api";
-import logo from "../assets/nosih-logo.svg";
+import logo from "../assets/nosih-logo.png";
 import "./styles.css";
 
 /**

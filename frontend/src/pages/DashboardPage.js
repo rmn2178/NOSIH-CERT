@@ -80,12 +80,22 @@ export default function DashboardPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {!stats && !error && <p className="muted">Loading statistics…</p>}
+      {!stats && !error && (
+        <div className="stats-grid">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="stat-card skel skel-stat" style={{ animationDelay: `${i * 0.07}s` }} />
+          ))}
+        </div>
+      )}
 
       {stats && (
         <div className="stats-grid">
-          {cards.map((c) => (
-            <div key={c.label} className={`stat-card ${c.tone ? `stat-${c.tone}` : ""}`}>
+          {cards.map((c, i) => (
+            <div
+              key={c.label}
+              className={`stat-card ${c.tone ? `stat-${c.tone}` : ""}`}
+              style={{ animationDelay: `${i * 0.06}s` }}
+            >
               <div className="stat-icon">{c.icon}</div>
               <div className="stat-value">{c.value}</div>
               <div className="stat-label">{c.label}</div>

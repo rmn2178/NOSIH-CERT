@@ -1,7 +1,7 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FileUp, FolderOpen, Building2, ScanSearch, FileSearch } from "lucide-react";
-import logo from "../assets/nosih-logo.svg";
+import logo from "../assets/nosih-logo.png";
 import { sessionUser } from "../utils/api";
 import { ROLE_LABELS } from "../utils/certificateHelpers";
 

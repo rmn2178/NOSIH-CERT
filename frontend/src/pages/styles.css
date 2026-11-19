@@ -62,6 +62,55 @@
   }
 }
 
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modal-drop {
+  from { opacity: 0; transform: scale(0.94) translateY(-10px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: -600px 0; }
+  to   { background-position:  600px 0; }
+}
+
+@keyframes card-pop-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes alert-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes step-ping {
+  0%   { transform: scale(1);    }
+  40%  { transform: scale(1.1);  }
+  100% { transform: scale(1);    }
+}
+
+/* ── Page route transitions ───────────────────────────── */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.page-exit {
+  opacity: 1;
+}
+.page-exit-active {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
 /* ── Base ─────────────────────────────────────────────── */
 body {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -143,12 +192,11 @@ code,
 }
 
 .brand-logo {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   flex-shrink: 0;
-  /* drop the logo's white background on the light sidebar */
-  mix-blend-mode: multiply;
+  border-radius: 4px;
 }
 
 .sidebar-nav {
@@ -166,9 +214,10 @@ code,
   padding: 10px 12px;
   border-radius: 8px;
   color: var(--text-primary);
-  transition: all 0.2s ease;
+  transition: background 180ms ease, color 180ms ease, border-left-color 180ms ease;
   font-size: .9rem;
   border-left: 4px solid transparent;
+  will-change: background;
 }
 
 .nav-item:hover {
@@ -215,7 +264,7 @@ code,
   border-radius: 6px;
   cursor: pointer;
   font-size: .85rem;
-  transition: all 0.2s ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
 .logout-btn:hover {
@@ -258,9 +307,9 @@ code,
   border-radius: var(--radius-xl);
   padding: 24px;
   box-shadow: var(--shadow-card);
-  animation: fadeIn 0.5s ease both;
-  animation-delay: 0.1s;
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  animation: fadeIn 0.4s ease both;
+  animation-delay: 0.05s;
+  transition: box-shadow 250ms ease, transform 250ms ease;
 }
 
 .section-title {
@@ -329,13 +378,20 @@ textarea:focus {
   font-size: .9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
   text-decoration: none;
+  will-change: transform;
 }
 
 .btn:disabled {
   opacity: .5;
   cursor: not-allowed;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0px) scale(0.97);
+  box-shadow: none !important;
+  transition-duration: 70ms;
 }
 
 .btn-primary {
@@ -404,6 +460,7 @@ textarea:focus {
   border-radius: 8px;
   margin: 12px 0;
   font-size: .9rem;
+  animation: alert-in 200ms ease both;
 }
 
 .alert-error {
@@ -456,7 +513,7 @@ textarea:focus {
   padding: 40px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: border-color 200ms ease, background 200ms ease, color 200ms ease;
   margin-bottom: 20px;
   color: var(--text-muted);
   background: var(--surface-muted);
@@ -499,6 +556,10 @@ textarea:focus {
   font-size: .75rem;
   background: var(--surface-muted);
   letter-spacing: 0.03em;
+}
+
+.cert-table tbody tr {
+  transition: background 120ms ease;
 }
 
 .cert-table tr:hover {
@@ -603,8 +664,9 @@ textarea:focus {
   padding: 16px 20px;
   text-align: center;
   box-shadow: var(--shadow-card);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
-  animation: fadeIn 0.5s ease backwards;
+  transition: box-shadow 250ms ease, transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1), border-color 250ms ease;
+  animation: card-pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  will-change: transform;
 }
 
 .stat-card:nth-child(1) {
@@ -705,8 +767,9 @@ textarea:focus {
   text-decoration: none;
   color: var(--text-primary);
   box-shadow: var(--shadow-card);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
-  animation: fadeIn 0.5s ease backwards;
+  transition: box-shadow 250ms ease, border-color 250ms ease, transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: card-pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  will-change: transform;
 }
 
 .action-icon {
@@ -805,13 +868,14 @@ textarea:focus {
   height: 96px;
   object-fit: contain;
   margin: 0 auto;
-  mix-blend-mode: multiply;
+  border-radius: 8px;
 }
 
 .auth-logo .logo-img {
   width: 56px;
   height: 56px;
   margin: 0 auto 12px;
+  border-radius: 6px;
 }
 
 .auth-logo h1 {
@@ -1556,11 +1620,14 @@ textarea:focus {
   position: fixed; inset: 0; z-index: 60;
   background: rgba(30, 33, 38, 0.45);
   display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: overlay-in 180ms ease both;
 }
 .modal-card {
   background: var(--card-bg); border-radius: var(--radius-xl);
   box-shadow: var(--shadow-hover); max-width: 520px; width: 100%;
   padding: 22px 24px; max-height: 90vh; overflow-y: auto;
+  animation: modal-drop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform;
 }
 .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .modal-header h2 { font-size: 1.05rem; display: flex; align-items: center; gap: 8px; margin: 0; }
@@ -1664,4 +1731,78 @@ td.hash-cell .mono { word-break: break-all; }
   .review-layout, .details-columns { grid-template-columns: 1fr; }
   .review-side, .details-side { position: static; }
   .receipt-grid { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   NOSIH — Smoothness & Animation Enhancements
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Skeleton loader ── */
+.skel {
+  background: linear-gradient(90deg,
+    var(--surface-sunken) 25%,
+    var(--card-border)    50%,
+    var(--surface-sunken) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: var(--radius-xl);
+  pointer-events: none;
+}
+.skel-stat { height: 94px; }
+.skel-row  { height: 18px; border-radius: 6px; margin-bottom: 10px; }
+.skel-row-sm { height: 13px; width: 55%; border-radius: 6px; }
+.skel-table-row { height: 44px; border-radius: 6px; margin-bottom: 6px; }
+
+/* ── Row click transition ── */
+.row-click td {
+  transition: background 120ms ease;
+}
+
+/* ── Issue rail (stepper) transitions ── */
+.issue-rail li {
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+.issue-rail li.current {
+  animation: step-ping 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Transaction step completion ping ── */
+.tx-step.done .tx-step-marker {
+  animation: step-ping 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Auth tab transitions ── */
+.auth-tab {
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+/* ── Cert card will-change ── */
+.cert-card {
+  will-change: transform;
+  transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 250ms ease;
+}
+
+/* ── Pagination button transitions ── */
+.pagination button {
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+/* ── Copy btn refined transition ── */
+.copy-btn {
+  transition: color 150ms ease, background 150ms ease;
+}
+
+/* ── Status banner entry ── */
+.status-banner {
+  animation: alert-in 220ms ease both;
+}
+
+/* ── Verify / result card entry ── */
+.verify-card, .result-card {
+  animation: card-pop-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Main content — keep but speed up ── */
+.main-content {
+  animation: fadeIn 0.3s ease both;
 }
