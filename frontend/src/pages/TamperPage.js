@@ -6,7 +6,7 @@ import {
 import CertificateUpload from "../components/CertificateUpload";
 import { tamperCheckPublic, apiErrorMessage } from "../utils/api";
 import { shortHex, formatDateTime } from "../utils/certificateHelpers";
-import logo from "../assets/nosih-logo.svg";
+import logo from "../assets/nosih-logo.png";
 import "./styles.css";
 
 const CERT_RE = /^CERT-[0-9A-F]{8}$/i;

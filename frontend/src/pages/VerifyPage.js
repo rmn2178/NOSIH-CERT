@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ScanSearch, FileSearch, ArrowRight } from "lucide-react";
 import VerificationResult from "../components/VerificationResult";
 import { verifyCertificatePublic, apiErrorMessage } from "../utils/api";
-import logo from "../assets/nosih-logo.svg";
+import logo from "../assets/nosih-logo.png";
 import "./styles.css";
 
 const CERT_RE = /^CERT-[0-9A-F]{8}$/i;

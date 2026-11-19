@@ -921,9 +921,10 @@ textarea:focus {
 }
 
 .verify-header .logo-img {
-  width: 108px;
-  height: 108px;
-  margin: 0 auto 10px;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 16px;
+  border-radius: 10px;
 }
 
 .verify-header h1 {
