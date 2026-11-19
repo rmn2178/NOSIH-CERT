@@ -12,7 +12,8 @@
  * Roles:
  *   DEPLOYER — pays for deploy + authorizeIssuer/removeIssuer (local hardhat)
  *   REVOKER  — the only server-side chain write (revocations)
- *   ISSUER   — signs issuance in MetaMask; address only, no key on the server
+ *   ISSUER   — signs issuance in MetaMask; may share the revoker wallet/key
+ *              if the operator unified them (see NOTE at the bottom)
  */
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
@@ -84,5 +85,11 @@ if (!wallets.length) {
 }
 
 console.log("Estimates are conservative; actual gas varies with calldata size.");
-console.log("The issuer key never lives on the server — issuance is MetaMask-only.");
+console.log("Issuance is signed in MetaMask (prepare→sign→confirm); the server signs revocations only.");
+const revokerAddress = process.env.REVOKE_PRIVATE_KEY
+  ? new ethers.Wallet(normKey(process.env.REVOKE_PRIVATE_KEY)).address.toLowerCase()
+  : null;
+if (revokerAddress && (process.env.ISSUER_ADDRESS || "").toLowerCase() === revokerAddress) {
+  console.log("NOTE: issuer and revoker are the SAME wallet — the server custodies the shared key.");
+}
 process.exit(failures ? 1 : 0);
