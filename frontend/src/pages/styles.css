@@ -1099,8 +1099,44 @@ textarea:focus {
   margin: 20px 0;
   padding: 16px;
   border: 1px solid var(--card-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
+}
+.hash-comparison.is-match { border-color: rgba(61, 139, 110, 0.45); background: rgba(235, 245, 240, 0.35); }
+.hash-comparison.is-mismatch { border-color: rgba(184, 64, 64, 0.45); background: rgba(248, 237, 237, 0.35); }
+.hash-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.hash-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  border: 1px solid var(--card-border);
+  min-width: 0;
+}
+.hash-card .hash-val {
+  word-break: break-all;
+  font-size: .8rem;
+  line-height: 1.45;
+}
+.hash-card .hash-val.match { color: var(--success); font-weight: 700; }
+.hash-card .hash-val.mismatch { color: var(--danger); font-weight: 700; }
+.hash-match-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: .88rem;
+  margin-top: 12px;
+}
+.hash-match-indicator.match { color: var(--success); }
+@media (max-width: 720px) {
+  .hash-compare-grid { grid-template-columns: 1fr; }
 }
 
 .hash-row {

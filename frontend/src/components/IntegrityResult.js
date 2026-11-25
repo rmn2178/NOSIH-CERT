@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, ShieldX, ShieldAlert } from "lucide-react";
-import { shortHex, formatDateTime } from "../utils/certificateHelpers";
+import { ShieldCheck, ShieldX, ShieldAlert, CheckCircle2, XCircle } from "lucide-react";
+import { formatDateTime } from "../utils/certificateHelpers";
 
 /** Verdict → presentation. Keys match the backend tamper verdicts exactly. */
 const STYLE = {
@@ -52,25 +52,35 @@ export default function IntegrityResult({ result }) {
       )}
 
       {(result.uploadedHash || result.chainDocumentHash) && (
-        <div className="hash-comparison">
-          {result.uploadedHash && (
-            <div className="hash-row">
+        <div className={`hash-comparison ${result.match === true ? "is-match" : result.match === false ? "is-mismatch" : ""}`}>
+          <div className="hash-compare-grid">
+            <div className="hash-card">
+              <span className="hash-label">On-Chain SHA-256</span>
+              <code className="hash-val original mono" title={result.chainDocumentHash || ""}>
+                {result.chainDocumentHash || "No matching record found on-chain"}
+              </code>
+            </div>
+            <div className="hash-card">
               <span className="hash-label">Uploaded PDF SHA-256</span>
-              <span className={`hash-val mono ${result.match === true ? "match" : result.match === false ? "mismatch" : ""}`} title={result.uploadedHash}>
-                {shortHex(result.uploadedHash, 24, 12)}
-              </span>
+              <code
+                className={`hash-val mono ${result.match === true ? "match" : result.match === false ? "mismatch" : ""}`}
+                title={result.uploadedHash || ""}
+              >
+                {result.uploadedHash || "—"}
+              </code>
+            </div>
+          </div>
+          {result.match === true && (
+            <div className="hash-match-indicator match">
+              <CheckCircle2 size={16} strokeWidth={2} aria-hidden /> Byte-for-byte SHA-256 match — authentic document
             </div>
           )}
-          {result.chainDocumentHash && (
-            <div className="hash-row">
-              <span className="hash-label">Chain-registered SHA-256</span>
-              <span className="hash-val original mono" title={result.chainDocumentHash}>
-                {shortHex(result.chainDocumentHash, 24, 12)}
-              </span>
+          {result.match === false && (
+            <div className="hash-match-indicator mismatch">
+              <XCircle size={16} strokeWidth={2} aria-hidden />{" "}
+              {result.chainDocumentHash ? "SHA-256 mismatch — document has been modified" : "Uploaded hash is not registered on-chain"}
             </div>
           )}
-          {result.match === true && <div className="hash-match-indicator">Hashes match exactly</div>}
-          {result.match === false && result.chainDocumentHash && <div className="hash-match-indicator mismatch">Hashes differ</div>}
         </div>
       )}
 
