@@ -63,7 +63,6 @@ export default function IssuePage() {
   const [txHash, setTxHash] = useState(null);
   const [certificate, setCertificate] = useState(null);
   const [confirmError, setConfirmError] = useState("");
-  const [bgStatus, setBgStatus] = useState("idle"); // idle | running | ready | error
   const signerRef = useRef(null);
   const aliveRef = useRef(true);
   const holderNameRef = useRef(null);
@@ -104,7 +103,6 @@ export default function IssuePage() {
 
   function resetFlow() {
     bgExtractRef.current = null;
-    setBgStatus("idle");
     setPhase("upload");
     setFile(null);
     setError("");
@@ -142,22 +140,15 @@ export default function IssuePage() {
     const form = new FormData();
     form.append("document", selectedFile);
     const entry = { file: selectedFile, status: "running", data: null, error: null, promise: null };
-    setBgStatus("running");
     entry.promise = extractCertificate(form)
       .then((res) => {
         entry.status = "ready";
         entry.data = res.data;
-        if (aliveRef.current && bgExtractRef.current === entry) {
-          setBgStatus("ready");
-        }
         return res.data;
       })
       .catch((err) => {
         entry.status = "error";
         entry.error = err;
-        if (aliveRef.current && bgExtractRef.current === entry) {
-          setBgStatus("error");
-        }
         throw err;
       });
     bgExtractRef.current = entry;
@@ -169,7 +160,6 @@ export default function IssuePage() {
     setError("");
     if (!selectedFile || reissue) {
       bgExtractRef.current = null;
-      setBgStatus("idle");
       return;
     }
     startBackgroundExtraction(selectedFile);
@@ -345,11 +335,7 @@ export default function IssuePage() {
               <button type="button" className="btn btn-primary" onClick={reissue ? () => setPhase("review") : runExtraction}>
                 {reissue
                   ? (<><ArrowRight {...ICON} /> Continue with previous metadata</>)
-                  : bgStatus === "ready"
-                    ? (<><CheckCircle2 {...ICON} /> Review extracted details</>)
-                    : bgStatus === "running"
-                      ? (<><Loader2 {...ICON} className="spin" /> Extracting details… Continue</>)
-                      : (<><Sparkles {...ICON} /> Extract details with AI</>)}
+                  : (<><Sparkles {...ICON} /> Extract details with AI</>)}
               </button>
               {!reissue && (
                 <button type="button" className="btn btn-secondary" onClick={manualEntry}>
