@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Ban, RefreshCw, Eye, ExternalLink, History, Copy, Check,
 } from "lucide-react";
@@ -34,22 +35,29 @@ export default function CertificateDetailsPage() {
   const { certificateId } = useParams();
   const user = sessionUser() || {};
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
 
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
   const [doc, setDoc] = useState(null);
   const [docBusy, setDocBusy] = useState(false);
   const [showRevoke, setShowRevoke] = useState(false);
   const [actionError, setActionError] = useState("");
   const [copied, setCopied] = useState("");
 
-  const load = useCallback(() => {
-    getCertificate(certificateId)
-      .then((res) => setData(res.data))
-      .catch((err) => setError(apiErrorMessage(err, "Could not load the certificate")));
-  }, [certificateId]);
+  const { data, error: queryError } = useQuery({
+    queryKey: ["certificate-detail", certificateId],
+    queryFn: async () => (await getCertificate(certificateId)).data,
+  });
+  const error = queryError ? apiErrorMessage(queryError, "Could not load the certificate") : "";
 
-  useEffect(() => { load(); }, [load]);
+  const load = () => queryClient.invalidateQueries({ queryKey: ["certificate-detail", certificateId] });
+
+  // "View Registration Information" links land on #blockchain-proof.
+  useEffect(() => {
+    if (!data || !location.hash) return;
+    const el = document.getElementById(location.hash.slice(1));
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [data, location.hash]);
 
   async function viewDocument() {
     setDocBusy(true);
@@ -68,7 +76,7 @@ export default function CertificateDetailsPage() {
     setActionError("");
     try {
       const res = await startReissue(certificateId);
-      navigate("/issue", { state: { reissue: res.data } });
+      navigate("/certificates/register", { state: { reissue: res.data } });
     } catch (err) {
       setActionError(apiErrorMessage(err, "Could not start the reissuance"));
     }
@@ -85,7 +93,7 @@ export default function CertificateDetailsPage() {
     return (
       <Layout title="Certificate">
         <div className="alert alert-error">{error}</div>
-        <Link to="/certificates" className="btn btn-secondary"><ArrowLeft {...ICON} /> Back to certificates</Link>
+        <Link to="/registered-certificates" className="btn btn-secondary"><ArrowLeft {...ICON} /> Back to registered certificates</Link>
       </Layout>
     );
   }
@@ -110,7 +118,7 @@ export default function CertificateDetailsPage() {
   return (
     <Layout title={c.certificateId}>
       <div className="details-header">
-        <Link to="/certificates" className="btn btn-sm btn-outline"><ArrowLeft {...ICON} /> All certificates</Link>
+        <Link to="/registered-certificates" className="btn btn-sm btn-outline"><ArrowLeft {...ICON} /> All registered certificates</Link>
         <span className={statusBadgeClass(c.status)}>{STATUS_LABELS[c.status] || c.status}</span>
         <span className="badge badge-neutral">{TYPE_LABELS[c.certificateType] || c.certificateType}</span>
         <div className="details-actions">
@@ -143,12 +151,12 @@ export default function CertificateDetailsPage() {
       )}
       {c.supersededByCertificateId && (
         <div className="alert alert-warning">
-          Superseded by <Link to={`/certificates/${c.supersededByCertificateId}`} className="mono">{c.supersededByCertificateId}</Link>.
+          Superseded by <Link to={`/registered-certificates/${c.supersededByCertificateId}`} className="mono">{c.supersededByCertificateId}</Link>.
         </div>
       )}
       {c.supersedesCertificateId && (
         <div className="alert alert-success">
-          This certificate supersedes <Link to={`/certificates/${c.supersedesCertificateId}`} className="mono">{c.supersedesCertificateId}</Link>.
+          This certificate supersedes <Link to={`/registered-certificates/${c.supersedesCertificateId}`} className="mono">{c.supersedesCertificateId}</Link>.
         </div>
       )}
 
@@ -187,7 +195,7 @@ export default function CertificateDetailsPage() {
             )}
           </div>
 
-          <div className="card">
+          <div className="card" id="blockchain-proof">
             <h3 className="section-title">Blockchain proof</h3>
             <table className="details-table">
               <tbody>
@@ -261,7 +269,7 @@ export default function CertificateDetailsPage() {
           <div className="card">
             <h3 className="section-title">Public verification</h3>
             <QRDisplay certificateId={c.certificateId} qrCodeData={c.qrCodeData} verifyUrl={c.verifyUrl} compact />
-            <Link className="btn btn-sm btn-outline full-width" to={`/verify?certificateId=${c.certificateId}`}>
+            <Link className="btn btn-sm btn-outline full-width" to={`/verify/certificate-id?certificateId=${c.certificateId}`}>
               Open public verify page
             </Link>
           </div>

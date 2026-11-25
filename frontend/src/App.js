@@ -4,19 +4,45 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-const LoginPage = lazy(() => import("./pages/LoginPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const IssuePage = lazy(() => import("./pages/IssuePage"));
-const CertificateRegistryPage = lazy(() => import("./pages/CertificateRegistryPage"));
-const RegisteredCertificatesPage = lazy(() => import("./pages/RegisteredCertificatesPage"));
-const CertificateDetailsPage = lazy(() => import("./pages/CertificateDetailsPage"));
-const InstitutionsPage = lazy(() => import("./pages/InstitutionsPage"));
-const InstitutionDetailsPage = lazy(() => import("./pages/InstitutionDetailsPage"));
-const VerifyLandingPage = lazy(() => import("./pages/VerifyLandingPage"));
-const VerifyByIdPage = lazy(() => import("./pages/VerifyByIdPage"));
-const VerifyByUploadPage = lazy(() => import("./pages/VerifyByUploadPage"));
+const loadLogin = () => import("./pages/LoginPage");
+const loadDashboard = () => import("./pages/DashboardPage");
+const loadIssue = () => import("./pages/IssuePage");
+const loadCertRegistry = () => import("./pages/CertificateRegistryPage");
+const loadRegisteredCerts = () => import("./pages/RegisteredCertificatesPage");
+const loadCertDetails = () => import("./pages/CertificateDetailsPage");
+const loadInstitutions = () => import("./pages/InstitutionsPage");
+const loadInstDetails = () => import("./pages/InstitutionDetailsPage");
+const loadVerifyLanding = () => import("./pages/VerifyLandingPage");
+const loadVerifyById = () => import("./pages/VerifyByIdPage");
+const loadVerifyByUpload = () => import("./pages/VerifyByUploadPage");
 
-const queryClient = new QueryClient({
+const LoginPage = lazy(loadLogin);
+const DashboardPage = lazy(loadDashboard);
+const IssuePage = lazy(loadIssue);
+const CertificateRegistryPage = lazy(loadCertRegistry);
+const RegisteredCertificatesPage = lazy(loadRegisteredCerts);
+const CertificateDetailsPage = lazy(loadCertDetails);
+const InstitutionsPage = lazy(loadInstitutions);
+const InstitutionDetailsPage = lazy(loadInstDetails);
+const VerifyLandingPage = lazy(loadVerifyLanding);
+const VerifyByIdPage = lazy(loadVerifyById);
+const VerifyByUploadPage = lazy(loadVerifyByUpload);
+
+const ROUTE_LOADERS = {
+  "/dashboard": loadDashboard,
+  "/registered-certificates": loadRegisteredCerts,
+  "/certificates": loadCertRegistry,
+  "/certificates/register": loadIssue,
+  "/institutions": loadInstitutions,
+  "/verify": loadVerifyLanding,
+};
+
+export function prefetchRoute(path) {
+  const loader = ROUTE_LOADERS[path];
+  if (loader) loader();
+}
+
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
@@ -64,7 +90,7 @@ function AnimatedRoutes() {
         key={location.pathname}
         nodeRef={nodeRef}
         classNames="page"
-        timeout={260}
+        timeout={110}
         unmountOnExit
       >
         <div ref={nodeRef} style={{ position: "relative", width: "100%" }}>

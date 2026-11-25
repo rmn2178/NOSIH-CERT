@@ -1,31 +1,53 @@
-import React from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FileUp, FolderOpen, Building2, ScanSearch, FileSearch } from "lucide-react";
+import React, { useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { LayoutDashboard, Award, Building2, ScanSearch, FolderOpen } from "lucide-react";
 import logo from "../assets/nosih-logo.png";
-import { sessionUser } from "../utils/api";
+import { sessionUser, getDashboardStats, listCertificates } from "../utils/api";
 import { ROLE_LABELS } from "../utils/certificateHelpers";
+import { prefetchRoute, queryClient } from "../App";
 
 const NAV_ICON = { size: 18, strokeWidth: 1.75, "aria-hidden": true };
 
 export default function Layout({ title, children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = sessionUser() || {};
 
+  function prefetchNav(to) {
+    prefetchRoute(to);
+    if (to === "/dashboard") {
+      queryClient.prefetchQuery({
+        queryKey: ["dashboard-stats", user.id || user.email, user.role],
+        queryFn: async () => (await getDashboardStats()).data,
+      });
+    } else if (to === "/registered-certificates") {
+      queryClient.prefetchQuery({
+        queryKey: ["registered-certificates", { page: 1, limit: 25 }],
+        queryFn: async () => (await listCertificates({ page: 1, limit: 25 })).data,
+      });
+    }
+  }
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      ["/dashboard", "/registered-certificates", "/certificates", "/institutions", "/verify"].forEach(prefetchRoute);
+    }, 300);
+    return () => clearTimeout(id);
+  }, []);
+
   function logout() {
+    queryClient.clear();
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
     navigate("/login");
   }
 
   const navItems = [
-    { to: "/", icon: <LayoutDashboard {...NAV_ICON} />, label: "Dashboard" },
-    ...( ["issuer", "institution_admin"].includes(user.role)
-      ? [{ to: "/issue", icon: <FileUp {...NAV_ICON} />, label: "Issue Certificate" }]
-      : [] ),
-    { to: "/certificates", icon: <FolderOpen {...NAV_ICON} />, label: "Certificates" },
-    { to: "/institutions", icon: <Building2 {...NAV_ICON} />, label: "Institutions" },
-    { to: "/verify", icon: <ScanSearch {...NAV_ICON} />, label: "Verify" },
-    { to: "/tamper", icon: <FileSearch {...NAV_ICON} />, label: "Tamper Check" },
+    { to: "/dashboard", icon: <LayoutDashboard {...NAV_ICON} />, label: "Dashboard", exact: true },
+    { to: "/registered-certificates", match: "/registered-certificates", icon: <FolderOpen {...NAV_ICON} />, label: "Registered Certificates" },
+    { to: "/certificates", match: "/certificates", icon: <Award {...NAV_ICON} />, label: "Certificate Registry" },
+    { to: "/institutions", match: "/institutions", icon: <Building2 {...NAV_ICON} />, label: "Institutions" },
+    { to: "/verify", match: "/verify", icon: <ScanSearch {...NAV_ICON} />, label: "Verify Certificate" },
   ];
 
   return (
@@ -39,10 +61,18 @@ export default function Layout({ title, children }) {
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <NavLink
-              key={item.to}
+              key={item.label}
               to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+              end={item.exact}
+              onMouseEnter={() => prefetchNav(item.to)}
+              onFocus={() => prefetchNav(item.to)}
+              className={({ isActive }) => {
+                // Section items stay active on their sub-pages (detail, register, verify methods).
+                const matchActive = item.match
+                  ? location.pathname === item.match || location.pathname.startsWith(`${item.match}/`)
+                  : isActive;
+                return `nav-item ${matchActive ? "active" : ""}`;
+              }}
             >
               <span className="nav-icon">{item.icon}</span>
               <span>{item.label}</span>

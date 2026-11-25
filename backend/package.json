@@ -41,6 +41,7 @@
     "@napi-rs/canvas": "$@napi-rs/canvas"
   },
   "devDependencies": {
+    "jest": "^30.5.2",
     "nodemon": "^3.0.2",
     "pg": "^8.13.1"
   }

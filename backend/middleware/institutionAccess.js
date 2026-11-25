@@ -10,21 +10,37 @@ import { normalizeRole } from "./auth.js";
  */
 
 /**
- * Loads the current user + their institution from the database on every
- * request. Deactivated accounts and role changes take effect immediately,
- * without waiting for the 8h JWT to expire.
+ * Loads the current user + their institution from the database (with a short
+ * 20-second in-memory cache to avoid repeating the same Supabase query on every
+ * parallel API request).
  */
+const USER_CACHE_TTL_MS = 20_000;
+const userCache = new Map();
+
+export function invalidateUserCache(userId) {
+  if (userId) userCache.delete(userId);
+  else userCache.clear();
+}
+
 export async function loadCurrentUser(req, res, next) {
   try {
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("*, institutions!institution_id(*)")
-      .eq("id", req.userId)
-      .eq("active", true)
-      .maybeSingle();
+    const cached = userCache.get(req.userId);
+    let user = cached && cached.expiresAt > Date.now() ? cached.user : null;
 
-    if (error) return res.status(500).json({ error: error.message });
-    if (!user) return res.status(401).json({ error: "Account not found or deactivated" });
+    if (!user) {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*, institutions!institution_id(*)")
+        .eq("id", req.userId)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(401).json({ error: "Account not found or deactivated" });
+
+      user = data;
+      userCache.set(req.userId, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+    }
 
     req.currentUser = user;
     req.userRole = normalizeRole(user.role); // authoritative over the JWT claim
