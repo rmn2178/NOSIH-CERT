@@ -16,7 +16,7 @@ import {
 import { issueCertificate, explorerTxUrl } from "../services/contract";
 import { classifyWalletError } from "../services/wallet";
 import {
-  FIELD_LABELS, TYPE_LABELS, confidenceInfo, extraFieldLabel, formatDateTime,
+  FIELD_LABELS, TYPE_LABELS, extraFieldLabel, formatDateTime,
 } from "../utils/certificateHelpers";
 
 const ICON = { size: 16, strokeWidth: 1.75, "aria-hidden": true };
@@ -532,18 +532,14 @@ export default function IssuePage() {
   );
 }
 
-/** Per-field AI confidence + inferred flag + supporting fragment (tooltip). */
+/** Supporting fragment (tooltip) for extracted fields. */
 function FieldAi({ fieldKey, ai }) {
   if (!ai) return null;
-  const conf = confidenceInfo(ai.confidence?.[fieldKey]);
-  const inferred = ai.inferredFields?.includes(fieldKey);
   const fragment = ai.evidence?.[fieldKey];
-  if (!conf && !inferred && !fragment) return null;
+  if (!fragment) return null;
   return (
-    <small className="field-ai" title={fragment ? `Source text: "${fragment}"` : undefined}>
-      {conf && <span className={`confidence ${conf.className}`}>{conf.label}</span>}
-      {inferred && <span className="confidence confidence-inferred">inferred</span>}
-      {fragment && <span className="confidence-evidence">"{fragment.slice(0, 60)}{fragment.length > 60 ? "…" : ""}"</span>}
+    <small className="field-ai" title={`Source text: "${fragment}"`}>
+      <span className="confidence-evidence">"{fragment.slice(0, 60)}{fragment.length > 60 ? "…" : ""}"</span>
     </small>
   );
 }
