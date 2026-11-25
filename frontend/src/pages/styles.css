@@ -326,7 +326,7 @@ code,
   letter-spacing: .03em;
 }
 
-input:not([type=checkbox]):not([type=radio]):not([type=file]),
+:where(input:not([type=checkbox]):not([type=radio]):not([type=file])),
 select,
 textarea {
   border: 1px solid var(--card-border);
@@ -1440,9 +1440,9 @@ textarea:focus {
   position: relative; display: flex; align-items: center; flex: 1;
 }
 .toolbar .search-input svg {
-  position: absolute; left: 12px; color: var(--text-muted); pointer-events: none;
+  position: absolute; left: 14px; color: var(--text-muted); pointer-events: none;
 }
-.toolbar .search-input input { width: 100%; padding-left: 36px; }
+.toolbar .search-input input { width: 100%; padding-left: 40px; }
 .toolbar select { max-width: 220px; }
 
 /* ── Access denied ── */
