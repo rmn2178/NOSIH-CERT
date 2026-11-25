@@ -179,7 +179,7 @@ export default function IssuePage() {
           ? bg.promise
           : startBackgroundExtraction(file).promise;
 
-      const [data] = await Promise.all([extractPromise, sleep(4000)]);
+      const [data] = await Promise.all([extractPromise, sleep(4500)]);
       if (!aliveRef.current) return;
       applyExtractedData(data);
     } catch (err) {
@@ -573,23 +573,32 @@ const EXTRACT_STAGES = [
 
 /** Animated scanner + live multi-stage progress view during extraction. */
 function ExtractingView({ fileName }) {
-  const [step, setStep] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStep(1), 900);
-    const t2 = setTimeout(() => setStep(2), 1900);
-    const t3 = setTimeout(() => setStep(3), 3000);
-    const tick = setInterval(() => setElapsedSec((s) => s + 1), 1000);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearInterval(tick);
+    const start = performance.now();
+    const duration = 4500;
+    let rafId = 0;
+
+    const frame = (now) => {
+      const elapsed = now - start;
+      const t = Math.min(1, elapsed / duration);
+      // Smooth ease-out curve up to 96%, then gently creeps if backend takes longer
+      const pct = t < 1
+        ? (1 - Math.pow(1 - t, 2.2)) * 96
+        : Math.min(99, 96 + (elapsed - duration) / 2000);
+      setProgress(pct);
+      setElapsedSec(Math.floor(elapsed / 1000));
+      rafId = requestAnimationFrame(frame);
     };
+
+    rafId = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
-  const progressPct = [18, 46, 76, 92][step] ?? 92;
+  const step = progress < 24 ? 0 : progress < 50 ? 1 : progress < 78 ? 2 : 3;
+  const progressPct = Math.round(progress);
 
   return (
     <div className="card extract-phase">
@@ -622,7 +631,7 @@ function ExtractingView({ fileName }) {
           </div>
 
           <div className="extract-progress-track" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
-            <div className="extract-progress-fill" style={{ width: `${progressPct}%` }} />
+            <div className="extract-progress-fill" style={{ width: `${progress.toFixed(2)}%` }} />
           </div>
 
           <ul className="extract-steps">
