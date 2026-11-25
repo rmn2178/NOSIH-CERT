@@ -18,10 +18,10 @@
 import "../env.js"; // loads the repository-root .env — must come first
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 const GEMINI_FALLBACK_MODELS = (
   process.env.GEMINI_FALLBACK_MODELS ||
-  "gemini-3.7-flash,gemini-3.1-flash-lite,gemini-flash-latest"
+  "gemini-3.5-flash-lite,gemini-3-flash-preview,gemini-flash-lite-latest,gemini-flash-latest"
 )
   .split(",")
   .map((s) => s.trim())

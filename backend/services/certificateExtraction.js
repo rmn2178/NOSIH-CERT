@@ -141,9 +141,9 @@ export function parseCertificateResponse(raw) {
   return { fields, confidence, evidence, inferredFields };
 }
 
-/** Enough to pre-fill a useful review form. */
+/** Enough to keep Gemini's extraction instead of discarding it. */
 export function isUsefulExtraction(r) {
-  return Boolean(r?.fields?.holderName && r?.fields?.institutionName && r?.fields?.certificateType);
+  return Boolean(r?.fields?.holderName || r?.fields?.courseName || r?.fields?.institutionName);
 }
 
 /**
@@ -365,7 +365,7 @@ export async function extractCertificateMetadata(filePath, originalname = "certi
         if (!ocrText || ocrText.trim().length < 15) {
           console.warn("[extract] OCR produced minimal text — using fallback defaults");
         } else {
-          text = cleanExtractedText(ocrText);
+          text = text ? cleanExtractedText(`${text}\n\n${ocrText}`) : cleanExtractedText(ocrText);
         }
         strategy = "local-ocr";
         reportStrategy("local-ocr", `${engine}, ${text.length} characters`);
