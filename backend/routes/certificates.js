@@ -72,6 +72,7 @@ import {
   getContractAddress,
   verifyIssuanceReceipt,
   readCertificate,
+  issueCertificateOnChain,
   revokeCertificateOnChain,
 } from "../services/blockchain.js";
 
@@ -363,6 +364,31 @@ router.post(
 
     console.log(`[issue/prepare] ${certificateId} pinned (${ipfsCid}) for ${req.issuerWallet}`);
 
+    const issueArgs = {
+      certificateIdHash,
+      institutionIdHash: institution.institution_id_hash,
+      holderIdentityHash,
+      documentHash,
+      metadataHash,
+      ipfsCID: ipfsCid,
+      issuer: req.issuerWallet,
+      issuedAt: 0,
+      expiresAt: chainExpiresAt,
+      revoked: false,
+      exists: false,
+      supersedesCertificateIdHash,
+    };
+
+    let txHash = null;
+    if (
+      String(req.body?.autoSign ?? "") === "true" &&
+      (process.env.ISSUER_PRIVATE_KEY || process.env.REVOKE_PRIVATE_KEY)
+    ) {
+      const chainRes = await issueCertificateOnChain(issueArgs);
+      txHash = chainRes.txHash;
+      console.log(`[issue/prepare] ${certificateId} auto-signed on-chain (${txHash})`);
+    }
+
     // The exact issueCertificate argument. The contract stamps issuer/issuedAt
     // itself; the values here for those fields are ignored on-chain.
     res.status(201).json({
@@ -371,20 +397,8 @@ router.post(
       contractAddress,
       chainId: CHAIN_ID,
       issuerWallet: req.issuerWallet,
-      issueArgs: {
-        certificateIdHash,
-        institutionIdHash: institution.institution_id_hash,
-        holderIdentityHash,
-        documentHash,
-        metadataHash,
-        ipfsCID: ipfsCid,
-        issuer: req.issuerWallet,
-        issuedAt: 0,
-        expiresAt: chainExpiresAt,
-        revoked: false,
-        exists: false,
-        supersedesCertificateIdHash,
-      },
+      txHash,
+      issueArgs,
       intent: intentFromRow(intent),
     });
   })

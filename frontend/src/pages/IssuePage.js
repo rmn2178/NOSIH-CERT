@@ -210,13 +210,20 @@ export default function IssuePage() {
       const form = new FormData();
       form.append("document", file);
       form.append("metadata", JSON.stringify({ ...fields, extraData }));
+      form.append("autoSign", "true");
       if (reissue?.supersedesCertificateId) {
         form.append("supersedesCertificateId", reissue.supersedesCertificateId);
       }
       const res = await prepareIssuance(form);
       if (!aliveRef.current) return;
       setPrepare(res.data);
-      setPhase("wallet");
+      if (res.data.txHash) {
+        setTxHash(res.data.txHash);
+        setPhase("confirming");
+        await runConfirm(res.data.certificateId, res.data.txHash);
+      } else {
+        setPhase("wallet");
+      }
     } catch (err) {
       if (!aliveRef.current) return;
       setError(apiErrorMessage(err, "Prepare failed"));
@@ -443,7 +450,7 @@ export default function IssuePage() {
                 <ArrowLeft {...ICON} /> Back
               </button>
               <button type="button" className="btn btn-primary" onClick={runPrepare} disabled={!reviewValid || phase === "preparing"}>
-                {phase === "preparing" ? "Encrypting + uploading to IPFS…" : (<>Approve &amp; prepare registration <ArrowRight {...ICON} /></>)}
+                {phase === "preparing" ? "Pinning to IPFS & registering on-chain…" : (<>Approve &amp; register on-chain <ArrowRight {...ICON} /></>)}
               </button>
             </div>
           </div>

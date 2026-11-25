@@ -218,6 +218,27 @@ export function getRevocationSigner() {
   return new ethers.Wallet(normalizePrivateKey(key), getReadProvider());
 }
 
+export function getIssuerSigner() {
+  const key = process.env.ISSUER_PRIVATE_KEY || process.env.REVOKE_PRIVATE_KEY;
+  if (!key) {
+    throw new ChainConfigError("ISSUER_PRIVATE_KEY / REVOKE_PRIVATE_KEY is not set");
+  }
+  return new ethers.Wallet(normalizePrivateKey(key), getReadProvider());
+}
+
+/**
+ * Signs and submits issueCertificate on-chain using the configured server
+ * issuer wallet when automatic registration is enabled.
+ */
+export async function issueCertificateOnChain(issueArgs, { signer, contractAddress } = {}) {
+  const runner = signer || getIssuerSigner();
+  const c = getRegistry(runner, contractAddress);
+  const tx = await c.issueCertificate(issueArgs);
+  const receipt = await tx.wait();
+  if (receipt.status !== 1) throw new Error("Issuance transaction reverted on-chain");
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber };
+}
+
 /**
  * Revokes on-chain with the dedicated REVOKER_ROLE key. Only the reason
  * HASH goes on-chain; the reason text stays private in Supabase.
