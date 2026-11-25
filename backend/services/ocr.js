@@ -262,6 +262,16 @@ export function ocrAvailable() {
   return false;
 }
 
+/** Pre-warms the Tesseract worker in the background so the first upload is fast. */
+export async function warmOcr() {
+  if (!ocrAvailable()) return;
+  try {
+    await getWorker();
+  } catch (err) {
+    console.warn("[ocr] pre-warm failed:", err.message);
+  }
+}
+
 /** Releases the worker. Used when the process is shutting down. */
 export async function shutdownOcr() {
   if (!workerPromise) return;

@@ -63,9 +63,11 @@ export default function IssuePage() {
   const [txHash, setTxHash] = useState(null);
   const [certificate, setCertificate] = useState(null);
   const [confirmError, setConfirmError] = useState("");
+  const [bgStatus, setBgStatus] = useState("idle"); // idle | running | ready | error
   const signerRef = useRef(null);
   const aliveRef = useRef(true);
   const holderNameRef = useRef(null);
+  const bgExtractRef = useRef(null);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -101,6 +103,8 @@ export default function IssuePage() {
   }
 
   function resetFlow() {
+    bgExtractRef.current = null;
+    setBgStatus("idle");
     setPhase("upload");
     setFile(null);
     setError("");
@@ -112,36 +116,82 @@ export default function IssuePage() {
     setAi(null);
   }
 
+  function applyExtractedData(d) {
+    setFields((f) => {
+      const merged = { ...f };
+      for (const [k, v] of Object.entries(d.fields || {})) {
+        // Keep the logged-in user's institution details if the document only had a fallback.
+        if ((k === "institutionName" || k === "institutionAddress") && f[k] && (!d.evidence?.[k] || d.inferredFields?.includes(k))) {
+          continue;
+        }
+        if (v) merged[k] = v;
+      }
+      return merged;
+    });
+    setExtraData(d.extraData || {});
+    setAi({
+      confidence: d.confidence || {}, evidence: d.evidence || {},
+      inferredFields: d.inferredFields || [], strategy: d.strategy,
+      disclaimer: d.disclaimer,
+    });
+    setNotice("");
+    setPhase("review");
+  }
+
+  function startBackgroundExtraction(selectedFile) {
+    const form = new FormData();
+    form.append("document", selectedFile);
+    const entry = { file: selectedFile, status: "running", data: null, error: null, promise: null };
+    setBgStatus("running");
+    entry.promise = extractCertificate(form)
+      .then((res) => {
+        entry.status = "ready";
+        entry.data = res.data;
+        if (aliveRef.current && bgExtractRef.current === entry) {
+          setBgStatus("ready");
+        }
+        return res.data;
+      })
+      .catch((err) => {
+        entry.status = "error";
+        entry.error = err;
+        if (aliveRef.current && bgExtractRef.current === entry) {
+          setBgStatus("error");
+        }
+        throw err;
+      });
+    bgExtractRef.current = entry;
+    return entry;
+  }
+
+  function handleFileSelect(selectedFile) {
+    setFile(selectedFile);
+    setError("");
+    if (!selectedFile || reissue) {
+      bgExtractRef.current = null;
+      setBgStatus("idle");
+      return;
+    }
+    startBackgroundExtraction(selectedFile);
+  }
+
   // ── Upload → extraction ────────────────────────────────
   async function runExtraction() {
     if (!file) return;
+    const bg = bgExtractRef.current;
+    if (bg && bg.file === file && bg.status === "ready" && bg.data) {
+      applyExtractedData(bg.data);
+      return;
+    }
+
     setPhase("extracting");
     setError("");
     try {
-      const form = new FormData();
-      form.append("document", file);
-      const res = await extractCertificate(form);
+      const data = bg && bg.file === file && bg.status === "running"
+        ? await bg.promise
+        : await startBackgroundExtraction(file).promise;
       if (!aliveRef.current) return;
-      const d = res.data;
-      setFields((f) => {
-        const merged = { ...f };
-        for (const [k, v] of Object.entries(d.fields || {})) {
-          // Keep the logged-in user's institution details if the document only had a fallback.
-          if ((k === "institutionName" || k === "institutionAddress") && f[k] && (!d.evidence?.[k] || d.inferredFields?.includes(k))) {
-            continue;
-          }
-          if (v) merged[k] = v;
-        }
-        return merged;
-      });
-      setExtraData(d.extraData || {});
-      setAi({
-        confidence: d.confidence || {}, evidence: d.evidence || {},
-        inferredFields: d.inferredFields || [], strategy: d.strategy,
-        disclaimer: d.disclaimer,
-      });
-      setNotice("");
-      setPhase("review");
+      applyExtractedData(data);
     } catch (err) {
       if (!aliveRef.current) return;
       // Extraction failure never blocks registration — manual entry is always possible.
@@ -289,13 +339,17 @@ export default function IssuePage() {
       {phase === "upload" && (
         <div className="card">
           <h3 className="section-title">Step 1 — Upload the original certificate PDF</h3>
-          <CertificateUpload file={file} onFile={setFile} />
+          <CertificateUpload file={file} onFile={handleFileSelect} />
           {file && (
             <div className="issue-upload-actions">
               <button type="button" className="btn btn-primary" onClick={reissue ? () => setPhase("review") : runExtraction}>
                 {reissue
                   ? (<><ArrowRight {...ICON} /> Continue with previous metadata</>)
-                  : (<><Sparkles {...ICON} /> Extract details with AI</>)}
+                  : bgStatus === "ready"
+                    ? (<><CheckCircle2 {...ICON} /> Review extracted details</>)
+                    : bgStatus === "running"
+                      ? (<><Loader2 {...ICON} className="spin" /> Extracting details… Continue</>)
+                      : (<><Sparkles {...ICON} /> Extract details with AI</>)}
               </button>
               {!reissue && (
                 <button type="button" className="btn btn-secondary" onClick={manualEntry}>
