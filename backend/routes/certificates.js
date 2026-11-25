@@ -37,12 +37,10 @@ import {
   certificateEventFromRow,
 } from "../supabase.js";
 import { protect, requireRoles } from "../middleware/auth.js";
-import { loadCurrentUser } from "../middleware/institutionAccess.js";
+import { loadCurrentUser, attachOwnInstitution, requireApprovedInstitution } from "../middleware/institutionAccess.js";
 import { requireIssuerWallet } from "../middleware/issuerAccess.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
-import { validatePdf } from "../services/pdfParser.js";
-import { extractCertificateMetadata } from "../services/certificateExtraction.js";
 import {
   CERTIFICATE_FIELDS,
   FIELD_DESCRIPTIONS,
@@ -139,7 +137,7 @@ router.post(
   "/extract",
   protect,
   loadCurrentUser,
-  requireRoles("issuer", "institution_admin"),
+  requireRoles("issuer", "institution_admin", "platform_admin"),
   upload.single("document"),
   asyncHandler(async (req, res) => {
     if (!req.file) throw httpError(400, "Upload a PDF certificate in the 'document' field");
@@ -148,6 +146,7 @@ router.post(
     const filePath = path.join(dir, "upload.pdf");
     try {
       fs.writeFileSync(filePath, req.file.buffer);
+      const { extractCertificateMetadata } = await import("../services/certificateExtraction.js");
       const result = await extractCertificateMetadata(filePath, req.file.originalname);
       res.json({
         ...result,
@@ -182,6 +181,8 @@ router.post(
   "/issue/prepare",
   protect,
   loadCurrentUser,
+  attachOwnInstitution,
+  requireApprovedInstitution,
   requireIssuerWallet,
   upload.single("document"),
   asyncHandler(async (req, res) => {
@@ -211,6 +212,7 @@ router.post(
     const extraData = value.extraData ?? {};
 
     // Original bytes: validated, then hashed EXACTLY as uploaded.
+    const { validatePdf } = await import("../services/pdfParser.js");
     const { buffer: pdfBuffer } = await validatePdf(req.file.buffer);
     const documentHash = computeDocumentHash(pdfBuffer);
 
@@ -679,6 +681,10 @@ router.get(
     if (institutionId) query = query.eq("institution_id", institutionId);
     if (req.query.status) query = query.eq("status", String(req.query.status));
     if (req.query.type) query = query.eq("certificate_type", String(req.query.type));
+    const registeredFrom = String(req.query.registeredFrom ?? "");
+    const registeredTo = String(req.query.registeredTo ?? "");
+    if (DATE_RE.test(registeredFrom)) query = query.gte("created_at", `${registeredFrom}T00:00:00.000Z`);
+    if (DATE_RE.test(registeredTo)) query = query.lte("created_at", `${registeredTo}T23:59:59.999Z`);
     if (req.query.q) {
       const q = String(req.query.q).replace(/[%,]/g, "").slice(0, 100);
       query = query.or(`holder_name.ilike.%${q}%,certificate_id.ilike.%${q}%,certificate_number.ilike.%${q}%`);
@@ -716,6 +722,67 @@ async function loadScopedCertificate(req) {
   }
   return row;
 }
+
+router.get(
+  "/stats",
+  protect,
+  loadCurrentUser,
+  asyncHandler(async (req, res) => {
+    const isPlatformAdmin = req.userRole === "platform_admin";
+    const institutionId = req.userInstitutionId;
+    if (!isPlatformAdmin && !institutionId) {
+      throw httpError(403, "No institution associated with this account");
+    }
+
+    const countByStatus = async (status) => {
+      let q = supabase.from("certificates").select("id", { count: "exact", head: true });
+      if (!isPlatformAdmin && institutionId) q = q.eq("institution_id", institutionId);
+      if (status) q = q.eq("status", status);
+      const { count, error } = await q;
+      if (error) throw httpError(500, error.message);
+      return count ?? 0;
+    };
+
+    let recentQuery = supabase
+      .from("certificates")
+      .select("*, institutions(name, institution_id, verification_status)")
+      .order("created_at", { ascending: false })
+      .limit(6);
+    if (!isPlatformAdmin && institutionId) recentQuery = recentQuery.eq("institution_id", institutionId);
+
+    const tasks = [
+      countByStatus(null),
+      countByStatus("active"),
+      countByStatus("revoked"),
+      countByStatus("expired"),
+      countByStatus("superseded"),
+      recentQuery,
+    ];
+    if (isPlatformAdmin) {
+      tasks.push(supabase.from("institutions").select("verification_status"));
+    }
+
+    const [total, active, revoked, expired, superseded, recentRes, instRes] = await Promise.all(tasks);
+    if (recentRes.error) throw httpError(500, recentRes.error.message);
+
+    let institutions = null;
+    if (isPlatformAdmin && instRes) {
+      if (instRes.error) throw httpError(500, instRes.error.message);
+      const rows = instRes.data ?? [];
+      institutions = {
+        total: rows.length,
+        approved: rows.filter((i) => i.verification_status === "approved").length,
+        pending: rows.filter((i) => i.verification_status === "pending").length,
+      };
+    }
+
+    res.json({
+      stats: { total, active, revoked, expired, superseded },
+      recent: (recentRes.data ?? []).map(certificateFromRow),
+      institutions,
+    });
+  })
+);
 
 router.get(
   "/:certificateId",
@@ -857,7 +924,7 @@ router.post(
   "/:certificateId/reissue",
   protect,
   loadCurrentUser,
-  requireRoles("issuer", "institution_admin"),
+  requireRoles("issuer", "institution_admin", "platform_admin"),
   asyncHandler(async (req, res) => {
     const row = await loadScopedCertificate(req);
     if (row.status === "revoked") {

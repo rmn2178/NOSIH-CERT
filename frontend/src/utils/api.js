@@ -132,6 +132,7 @@ export const fetchIntent = (certificateId) =>
   api.get(`/certificates/issue/intents/${certificateId}`);
 
 export const listCertificates = (params) => api.get("/certificates", { params });
+export const getDashboardStats = () => api.get("/certificates/stats");
 export const getCertificate = (certificateId) => api.get(`/certificates/${certificateId}`);
 
 /** Decrypted PDF as a Blob (auth required — no plain link). */
@@ -157,6 +158,10 @@ export const tamperCheckPublic = (certificateId, formData) =>
     ...(formData ? multipart : {}),
     timeout: 120000,
   });
+
+/** PDF-only public verification: formData.document, no certificate id needed. */
+export const verifyByDocumentPublic = (formData) =>
+  api.post("/verify/by-document", formData, { ...multipart, timeout: 120000 });
 
 /** Public QR PNG URL — a phone camera opens the verify page directly. */
 export const certificateQrUrl = (certificateId, download = false) =>

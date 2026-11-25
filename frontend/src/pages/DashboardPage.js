@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Award, ShieldCheck, Ban, Clock, Building2, FileUp, ScanSearch, ArrowRight,
 } from "lucide-react";
 import Layout from "../components/Layout";
-import { listCertificates, listInstitutions, apiErrorMessage, sessionUser } from "../utils/api";
+import { getDashboardStats, apiErrorMessage, sessionUser } from "../utils/api";
 import {
   typeLabel, statusBadgeClass, STATUS_LABELS, formatDate, ROLE_LABELS,
 } from "../utils/certificateHelpers";
@@ -13,45 +14,23 @@ const ICON = { size: 20, strokeWidth: 1.75, "aria-hidden": true };
 
 /**
  * Institution-scoped overview (platform admins see platform-wide numbers).
- * Counts come from the list endpoint's exact totals per status — no invented
- * statistics. Expiry is mirrored lazily by verification, so the expired
- * count reflects certificates already judged expired.
+ * Counts come from the backend /certificates/stats endpoint — single round-trip
+ * cached via React Query for instant back-navigation.
  */
 export default function DashboardPage() {
   const user = sessionUser() || {};
   const isPlatformAdmin = user.role === "platform_admin";
-  const [stats, setStats] = useState(null);
-  const [recent, setRecent] = useState([]);
-  const [institutions, setInstitutions] = useState(null);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    let alive = true;
-    async function load() {
-      try {
-        const countOf = async (status) => {
-          const res = await listCertificates({ limit: 1, ...(status ? { status } : {}) });
-          return res.data.total ?? 0;
-        };
-        const [total, active, revoked, expired, superseded, recentRes] = await Promise.all([
-          countOf(null), countOf("active"), countOf("revoked"), countOf("expired"), countOf("superseded"),
-          listCertificates({ limit: 6 }),
-        ]);
-        if (!alive) return;
-        setStats({ total, active, revoked, expired, superseded });
-        setRecent(recentRes.data.certificates || []);
-        if (isPlatformAdmin) {
-          const instRes = await listInstitutions();
-          if (alive) setInstitutions(instRes.data.institutions || []);
-        }
-      } catch (err) {
-        if (alive) setError(apiErrorMessage(err, "Could not load the dashboard"));
-      }
-    }
-    load();
-    return () => { alive = false; };
-  }, [isPlatformAdmin]);
+  const { data, error: queryError } = useQuery({
+    queryKey: ["dashboard-stats", user.id || user.email, user.role],
+    queryFn: async () => (await getDashboardStats()).data,
+  });
+
+  const stats = data?.stats || null;
+  const recent = data?.recent || [];
+  const instCounts = data?.institutions || null;
+  const error = queryError ? apiErrorMessage(queryError, "Could not load the dashboard") : "";
 
   const cards = stats ? [
     { label: isPlatformAdmin ? "Certificates (platform)" : "Certificates issued", value: stats.total, icon: <Award {...ICON} /> },
@@ -59,12 +38,6 @@ export default function DashboardPage() {
     { label: "Revoked", value: stats.revoked, icon: <Ban {...ICON} />, tone: "danger" },
     { label: "Expired", value: stats.expired, icon: <Clock {...ICON} />, tone: "warning" },
   ] : [];
-
-  const instCounts = institutions ? {
-    total: institutions.length,
-    approved: institutions.filter((i) => i.verificationStatus === "approved").length,
-    pending: institutions.filter((i) => i.verificationStatus === "pending").length,
-  } : null;
 
   return (
     <Layout title="Dashboard">
@@ -125,18 +98,13 @@ export default function DashboardPage() {
       )}
 
       <div className="action-grid">
-        {["issuer", "institution_admin"].includes(user.role) && (
-          <Link to="/issue" className="action-card">
-            <span className="action-icon"><FileUp {...ICON} /></span>
-            <strong>Issue a certificate</strong>
-            <small>Upload, review, sign with MetaMask</small>
+        {["issuer", "institution_admin", "platform_admin"].includes(user.role) && (
+          <Link to="/certificates" className="action-card">
+            <span className="action-icon"><Award {...ICON} /></span>
+            <strong>Certificate registry</strong>
+            <small>Register, search, inspect, revoke, reissue</small>
           </Link>
         )}
-        <Link to="/certificates" className="action-card">
-          <span className="action-icon"><Award {...ICON} /></span>
-          <strong>Certificate registry</strong>
-          <small>Search, inspect, revoke, reissue</small>
-        </Link>
         <Link to="/verify" className="action-card">
           <span className="action-icon"><ScanSearch {...ICON} /></span>
           <strong>Verify a certificate</strong>
@@ -147,7 +115,7 @@ export default function DashboardPage() {
       <div className="card">
         <div className="section-title-row">
           <h3 className="section-title">Recent certificates</h3>
-          <Link to="/certificates" className="btn btn-sm btn-outline">
+          <Link to="/registered-certificates" className="btn btn-sm btn-outline">
             View all <ArrowRight size={14} strokeWidth={1.75} aria-hidden />
           </Link>
         </div>
@@ -163,7 +131,7 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {recent.map((c) => (
-                  <tr key={c.certificateId} className="row-click" onClick={() => navigate(`/certificates/${c.certificateId}`)}>
+                  <tr key={c.certificateId} className="row-click" onClick={() => navigate(`/registered-certificates/${c.certificateId}`)}>
                     <td className="id-cell mono">{c.certificateId}</td>
                     <td>{c.holderName}</td>
                     <td>{typeLabel(c.certificateType)}</td>
