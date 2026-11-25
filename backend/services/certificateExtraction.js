@@ -360,7 +360,7 @@ export async function extractCertificateMetadata(filePath, originalname = "certi
       console.warn("[extract] canvas cannot render pages safely");
     } else if (Date.now() < deadline) {
       try {
-        const buffers = await timed("render pages", () => renderPdfPageBuffers(filePath));
+        const buffers = await timed("render pages", () => renderPdfPageBuffers(filePath, Number(process.env.OCR_MAX_PAGES || 2)));
         const { text: ocrText, engine } = await timed("local OCR", () => ocrImages(buffers));
         if (!ocrText || ocrText.trim().length < 15) {
           console.warn("[extract] OCR produced minimal text — using fallback defaults");

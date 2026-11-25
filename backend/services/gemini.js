@@ -26,9 +26,9 @@ const GEMINI_FALLBACK_MODELS = (
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 20000);
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 8000);
 const GEMINI_MAX_ATTEMPTS = Number(process.env.GEMINI_MAX_ATTEMPTS || 3);
-const GEMINI_BACKOFF_MS = Number(process.env.GEMINI_BACKOFF_MS || 500);
+const GEMINI_BACKOFF_MS = Number(process.env.GEMINI_BACKOFF_MS || 200);
 
 let genAI = null;
 function getGenAI() {
@@ -48,14 +48,14 @@ export function geminiConfigured() {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
-function getModel(schema, timeoutMs, modelName = GEMINI_MODEL) {
+function getModel(_schema, timeoutMs, modelName = GEMINI_MODEL) {
+  const supportsThinking = !/lite/i.test(modelName);
   return getGenAI().getGenerativeModel(
     {
       model: modelName,
       generationConfig: {
-        thinkingConfig: { thinkingBudget: 0 },
+        ...(supportsThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         responseMimeType: "application/json",
-        responseSchema: schema,
       },
     },
     {

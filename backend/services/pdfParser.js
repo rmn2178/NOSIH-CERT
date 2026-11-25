@@ -213,13 +213,13 @@ export async function renderPdfPageBuffers(filePath, maxPages = MAX_PDF_PAGES) {
   const pdfToPng = await getPdfToPng();
   const sharp = await getSharp();
   const pages = await pdfToPng(filePath, {
-    viewportScale: 2.5,
+    viewportScale: 2.0,
     pagesToProcess: Array.from({ length: maxPages }, (_, i) => i + 1),
   });
   const out = [];
   for (const page of pages.slice(0, maxPages)) {
     const preprocessed = await sharp(page.content)
-      .resize(2400, 2400, { fit: "inside", withoutEnlargement: true })
+      .resize(1800, 1800, { fit: "inside", withoutEnlargement: true })
       .grayscale()
       .normalize()
       .sharpen()
