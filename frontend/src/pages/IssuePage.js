@@ -169,17 +169,17 @@ export default function IssuePage() {
   async function runExtraction() {
     if (!file) return;
     const bg = bgExtractRef.current;
-    if (bg && bg.file === file && bg.status === "ready" && bg.data) {
-      applyExtractedData(bg.data);
-      return;
-    }
 
     setPhase("extracting");
     setError("");
     try {
-      const data = bg && bg.file === file && bg.status === "running"
-        ? await bg.promise
-        : await startBackgroundExtraction(file).promise;
+      const extractPromise = bg && bg.file === file && bg.status === "ready" && bg.data
+        ? Promise.resolve(bg.data)
+        : bg && bg.file === file && bg.status === "running"
+          ? bg.promise
+          : startBackgroundExtraction(file).promise;
+
+      const [data] = await Promise.all([extractPromise, sleep(4000)]);
       if (!aliveRef.current) return;
       applyExtractedData(data);
     } catch (err) {
@@ -577,9 +577,9 @@ function ExtractingView({ fileName }) {
   const [elapsedSec, setElapsedSec] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStep(1), 700);
-    const t2 = setTimeout(() => setStep(2), 2600);
-    const t3 = setTimeout(() => setStep(3), 5800);
+    const t1 = setTimeout(() => setStep(1), 900);
+    const t2 = setTimeout(() => setStep(2), 1900);
+    const t3 = setTimeout(() => setStep(3), 3000);
     const tick = setInterval(() => setElapsedSec((s) => s + 1), 1000);
     return () => {
       clearTimeout(t1);
