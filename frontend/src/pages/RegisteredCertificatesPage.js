@@ -7,7 +7,7 @@ import RevokeModal from "../components/RevokeModal";
 import { listCertificates, listInstitutions, apiErrorMessage, sessionUser } from "../utils/api";
 import { explorerTxUrl } from "../services/contract";
 import {
-  typeLabel, statusBadgeClass, STATUS_LABELS, formatDate, shortHex, canRevoke,
+  typeLabel, statusBadgeClass, STATUS_LABELS, formatDate, canRevoke,
 } from "../utils/certificateHelpers";
 
 const PAGE_SIZE = 25;
@@ -135,8 +135,6 @@ export default function RegisteredCertificatesPage() {
                   <th>Certificate Title</th>
                   <th>Issue Date</th>
                   <th>Registration Date</th>
-                  <th>Document Hash</th>
-                  <th>Transaction Hash</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -150,18 +148,6 @@ export default function RegisteredCertificatesPage() {
                     <td>{certificateTitle(c)}</td>
                     <td>{formatDate(c.issueDate)}</td>
                     <td>{formatDate(c.createdAt)}</td>
-                    <td className="mono" title={c.documentHash}>{shortHex(c.documentHash, 10, 6)}</td>
-                    <td className="mono">
-                      <a
-                        href={explorerTxUrl(c.txHash)}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={c.txHash}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {shortHex(c.txHash, 10, 6)}
-                      </a>
-                    </td>
                     <td><span className={statusBadgeClass(c.status)}>{STATUS_LABELS[c.status] || c.status}</span></td>
                     <td className="action-btns">
                       <button
