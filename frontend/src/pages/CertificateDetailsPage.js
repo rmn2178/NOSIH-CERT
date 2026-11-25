@@ -123,7 +123,7 @@ export default function CertificateDetailsPage() {
         <span className="badge badge-neutral">{TYPE_LABELS[c.certificateType] || c.certificateType}</span>
         <div className="details-actions">
           <button type="button" className="btn btn-sm btn-secondary" onClick={viewDocument} disabled={docBusy}>
-            <Eye {...ICON} /> {docBusy ? "Decrypting…" : "View document"}
+            <Eye {...ICON} /> {docBusy ? "Decrypting from IPFS…" : "View original (IPFS)"}
           </button>
           {canReissue(user, c) && (
             <button type="button" className="btn btn-sm btn-secondary" onClick={reissue}>

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { Search, ChevronLeft, ChevronRight, Eye, ExternalLink, Ban, Info } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Eye, ExternalLink, Ban, Info, FileText } from "lucide-react";
 import Layout from "../components/Layout";
 import RevokeModal from "../components/RevokeModal";
-import { listCertificates, listInstitutions, apiErrorMessage, sessionUser } from "../utils/api";
+import { listCertificates, listInstitutions, fetchCertificateDocument, blobErrorMessage, apiErrorMessage, sessionUser } from "../utils/api";
 import { explorerTxUrl } from "../services/contract";
 import {
   typeLabel, statusBadgeClass, STATUS_LABELS, formatDate, canRevoke,
@@ -37,7 +37,25 @@ export default function RegisteredCertificatesPage() {
   const [registeredFrom, setRegisteredFrom] = useState("");
   const [registeredTo, setRegisteredTo] = useState("");
   const [notice, setNotice] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [openingId, setOpeningId] = useState("");
   const [revokeTarget, setRevokeTarget] = useState(null);
+
+  async function openOriginalFromIpfs(certId) {
+    setOpeningId(certId);
+    setActionError("");
+    try {
+      const res = await fetchCertificateDocument(certId);
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      setActionError(await blobErrorMessage(err, "Could not fetch original PDF from IPFS"));
+    } finally {
+      setOpeningId("");
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim()), q ? 250 : 0);
@@ -117,7 +135,7 @@ export default function RegisteredCertificatesPage() {
       </div>
 
       {notice && <div className="alert alert-success">{notice}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {(error || actionError) && <div className="alert alert-error">{actionError || error}</div>}
 
       <div className="card">
         {loading ? (
@@ -155,6 +173,13 @@ export default function RegisteredCertificatesPage() {
                         onClick={() => navigate(`/registered-certificates/${c.certificateId}`)}
                       >
                         <Eye {...ICON} /> View
+                      </button>
+                      <button
+                        type="button" className="btn btn-sm btn-outline" title="View original PDF from IPFS"
+                        disabled={openingId === c.certificateId}
+                        onClick={() => openOriginalFromIpfs(c.certificateId)}
+                      >
+                        <FileText {...ICON} /> {openingId === c.certificateId ? "Opening…" : "Original PDF"}
                       </button>
                       <button
                         type="button" className="btn btn-sm btn-outline" title="View registration information"
