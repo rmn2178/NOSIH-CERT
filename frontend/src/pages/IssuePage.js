@@ -64,6 +64,7 @@ export default function IssuePage() {
   const [confirmError, setConfirmError] = useState("");
   const signerRef = useRef(null);
   const aliveRef = useRef(true);
+  const holderNameRef = useRef(null);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -343,8 +344,10 @@ export default function IssuePage() {
                 </select>
               </div>
               <div className="field">
-                <label>{FIELD_LABELS.holderName} *</label>
+                <label htmlFor="holderName">{FIELD_LABELS.holderName} *</label>
                 <input
+                  id="holderName"
+                  ref={holderNameRef}
                   type="text"
                   value={fields.holderName}
                   onChange={(e) => setField("holderName", e.target.value)}
@@ -387,7 +390,20 @@ export default function IssuePage() {
             )}
 
             {!reviewValid && (
-              <div className="alert alert-error">Student name (min 2 characters) and certificate type are required.</div>
+              <div className="alert alert-error">
+                <a
+                  href="#holderName"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    holderNameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    holderNameRef.current?.focus();
+                  }}
+                  style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}
+                >
+                  Holder name
+                </a>{" "}
+                (min 2 characters) and certificate type are required.
+              </div>
             )}
 
             <div className="issue-upload-actions">
