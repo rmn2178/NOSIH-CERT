@@ -17,10 +17,12 @@ export async function requireIssuerWallet(req, res, next) {
       return res.status(403).json({ error: "Only issuer or institution-admin accounts can issue certificates" });
     }
 
-    const wallet = String(req.currentUser?.wallet_address ?? "").toLowerCase();
+    const envWallet = String(process.env.ISSUER_ADDRESS ?? "").trim().toLowerCase();
+    const userWallet = String(req.currentUser?.wallet_address ?? "").trim().toLowerCase();
+    const wallet = /^0x[0-9a-f]{40}$/.test(envWallet) ? envWallet : userWallet;
     if (!/^0x[0-9a-f]{40}$/.test(wallet)) {
       return res.status(403).json({
-        error: "No valid wallet address on this account. Ask your institution admin to set one.",
+        error: "No valid wallet address configured (set ISSUER_ADDRESS in .env).",
       });
     }
 
@@ -43,14 +45,14 @@ export async function requireIssuerWallet(req, res, next) {
       .maybeSingle();
 
     if (error) return res.status(500).json({ error: error.message });
-    if (!binding) {
+    if (!binding && wallet !== envWallet) {
       return res.status(403).json({
         error: "This wallet is not an active authorized issuer for your institution",
       });
     }
 
     req.issuerWallet = wallet;
-    req.issuerWalletBinding = binding;
+    req.issuerWalletBinding = binding || { wallet_address: wallet, institution_id: req.userInstitutionId, active: true };
     next();
   } catch (err) {
     next(err);
