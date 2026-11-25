@@ -41,6 +41,9 @@ export function prefetchRoute(path) {
   if (loader) loader();
 }
 
+const CACHE_STORAGE_KEY = "nosih_query_cache_v1";
+const PERSISTED_PREFIXES = new Set(["dashboard-stats", "registered-certificates", "institutions-list"]);
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -50,6 +53,42 @@ export const queryClient = new QueryClient({
       retry: 1,
     },
   },
+});
+
+// Hydrate cached Supabase snapshots immediately on startup so pages render with 0ms delay,
+// then silently revalidate in the background.
+try {
+  const raw = localStorage.getItem(CACHE_STORAGE_KEY);
+  if (raw) {
+    const entries = JSON.parse(raw);
+    if (Array.isArray(entries)) {
+      for (const { queryKey, data } of entries) {
+        queryClient.setQueryData(queryKey, data, { updatedAt: 0 });
+      }
+    }
+  }
+} catch {
+  /* ignore corrupt cache */
+}
+
+let persistTimer = null;
+queryClient.getQueryCache().subscribe((event) => {
+  if (event?.type !== "updated" || event?.action?.type !== "success") return;
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    try {
+      const snapshot = queryClient
+        .getQueryCache()
+        .getAll()
+        .filter((q) => PERSISTED_PREFIXES.has(q.queryKey?.[0]) && q.state.data !== undefined)
+        .slice(0, 10)
+        .map((q) => ({ queryKey: q.queryKey, data: q.state.data }));
+      localStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+      /* ignore quota errors */
+    }
+  }, 250);
 });
 
 function PageFallback() {

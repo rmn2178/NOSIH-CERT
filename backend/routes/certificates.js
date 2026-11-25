@@ -723,6 +723,9 @@ async function loadScopedCertificate(req) {
   return row;
 }
 
+const statsCache = new Map();
+const STATS_TTL_MS = 20_000;
+
 router.get(
   "/stats",
   protect,
@@ -732,6 +735,12 @@ router.get(
     const institutionId = req.userInstitutionId;
     if (!isPlatformAdmin && !institutionId) {
       throw httpError(403, "No institution associated with this account");
+    }
+
+    const cacheKey = isPlatformAdmin ? "admin" : String(institutionId);
+    const cached = statsCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return res.json(cached.payload);
     }
 
     const countByStatus = async (status) => {
@@ -776,11 +785,13 @@ router.get(
       };
     }
 
-    res.json({
+    const payload = {
       stats: { total, active, revoked, expired, superseded },
       recent: (recentRes.data ?? []).map(certificateFromRow),
       institutions,
-    });
+    };
+    statsCache.set(cacheKey, { payload, expiresAt: Date.now() + STATS_TTL_MS });
+    res.json(payload);
   })
 );
 

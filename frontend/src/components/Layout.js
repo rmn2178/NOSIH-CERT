@@ -47,6 +47,7 @@ export default function Layout({ title, children }) {
 
   function logout() {
     queryClient.clear();
+    try { localStorage.removeItem("nosih_query_cache_v1"); } catch {}
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
     navigate("/login");
