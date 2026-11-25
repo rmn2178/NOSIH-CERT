@@ -43,9 +43,21 @@ function getGenAI() {
   return genAI;
 }
 
+function getGroqKeys() {
+  return [
+    process.env.GROK_API_KEY_1,
+    process.env.GROK_API_KEY_2,
+    process.env.GROK_API_KEY_3,
+    process.env.GROQ_API_KEY,
+    process.env.GROK_API_KEY,
+  ]
+    .map((k) => String(k || "").trim())
+    .filter(Boolean);
+}
+
 /** True when the extraction feature is configured at all. */
 export function geminiConfigured() {
-  return Boolean(process.env.GEMINI_API_KEY);
+  return Boolean(process.env.GEMINI_API_KEY || getGroqKeys().length > 0);
 }
 
 function getModel(_schema, timeoutMs, modelName = GEMINI_MODEL) {
@@ -106,6 +118,25 @@ export async function generateStructuredText(prompt, schema, deadline = Infinity
     throw new Error("Gemini receives extracted text only — media parts are forbidden");
   }
 
+  const groqKeys = getGroqKeys();
+  if (groqKeys.length > 0) {
+    for (let i = 0; i < groqKeys.length; i++) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      try {
+        return await callGroqFallback(prompt, groqKeys[i], Math.min(GEMINI_TIMEOUT_MS, remaining));
+      } catch (err) {
+        console.warn(`[groq] key #${i + 1} failed (${err.message}) — trying next`);
+      }
+    }
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    const err = new Error("All configured Groq keys failed and GEMINI_API_KEY is not set");
+    err.status = 503;
+    throw err;
+  }
+
   const candidates = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS];
   let lastError = null;
   for (let attempt = 1; attempt <= Math.max(GEMINI_MAX_ATTEMPTS, candidates.length); attempt++) {
@@ -120,14 +151,7 @@ export async function generateStructuredText(prompt, schema, deadline = Infinity
       lastError = err;
       const wait = GEMINI_BACKOFF_MS * attempt;
       const exhausted = attempt === Math.max(GEMINI_MAX_ATTEMPTS, candidates.length) || Date.now() + wait >= deadline;
-      if (!isTransient(err) || exhausted) {
-        // Optional OpenAI-compatible failover (e.g. GROQ_API_KEY) if Gemini is unavailable.
-        const groqKey = process.env.GROQ_API_KEY;
-        if (groqKey) {
-          return await callGroqFallback(prompt, groqKey, Math.min(GEMINI_TIMEOUT_MS, remaining));
-        }
-        throw err;
-      }
+      if (!isTransient(err) || exhausted) throw err;
 
       const reason = String(err.message || err).split("\n")[0].slice(0, 120);
       console.warn(`[gemini] ${modelName} failed (${reason}) — trying next in ${wait} ms`);
@@ -145,7 +169,7 @@ async function callGroqFallback(prompt, apiKey, timeoutMs) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
       temperature: 0,
