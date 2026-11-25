@@ -1,7 +1,6 @@
-import React, { Suspense, lazy, useRef } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
+import React, { Suspense, lazy } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { CSSTransition, TransitionGroup } from "react-transition-group";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const loadLogin = () => import("./pages/LoginPage");
@@ -45,8 +44,8 @@ export function prefetchRoute(path) {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
-      gcTime: 5 * 60_000,
+      staleTime: 60_000,
+      gcTime: 10 * 60_000,
       refetchOnWindowFocus: false,
       retry: 1,
     },
@@ -81,49 +80,34 @@ function LegacyCertificateRedirect() {
 }
 
 function AnimatedRoutes() {
-  const location = useLocation();
-  const nodeRef = useRef(null);
-
   return (
-    <TransitionGroup component={null}>
-      <CSSTransition
-        key={location.pathname}
-        nodeRef={nodeRef}
-        classNames="page"
-        timeout={110}
-        unmountOnExit
-      >
-        <div ref={nodeRef} style={{ position: "relative", width: "100%" }}>
-          <Suspense fallback={<PageFallback />}>
-            <Routes location={location}>
-              {/* Public — verification never requires an account */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/verify" element={<VerifyLandingPage />} />
-              <Route path="/verify/certificate-id" element={<VerifyByIdPage />} />
-              <Route path="/verify/upload" element={<VerifyByUploadPage />} />
-              <Route path="/tamper" element={<LegacyTamperRedirect />} />
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        {/* Public — verification never requires an account */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify" element={<VerifyLandingPage />} />
+        <Route path="/verify/certificate-id" element={<VerifyByIdPage />} />
+        <Route path="/verify/upload" element={<VerifyByUploadPage />} />
+        <Route path="/tamper" element={<LegacyTamperRedirect />} />
 
-              {/* Protected portal */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-              <Route path="/registered-certificates" element={<ProtectedRoute><RegisteredCertificatesPage /></ProtectedRoute>} />
-              <Route path="/registered-certificates/:certificateId" element={<ProtectedRoute><CertificateDetailsPage /></ProtectedRoute>} />
-              <Route path="/certificates" element={<ProtectedRoute><CertificateRegistryPage /></ProtectedRoute>} />
-              <Route path="/certificates/register" element={<ProtectedRoute roles={REGISTER_ROLES}><IssuePage /></ProtectedRoute>} />
-              <Route path="/institutions" element={<ProtectedRoute><InstitutionsPage /></ProtectedRoute>} />
-              <Route path="/institutions/:id" element={<ProtectedRoute><InstitutionDetailsPage /></ProtectedRoute>} />
+        {/* Protected portal */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/registered-certificates" element={<ProtectedRoute><RegisteredCertificatesPage /></ProtectedRoute>} />
+        <Route path="/registered-certificates/:certificateId" element={<ProtectedRoute><CertificateDetailsPage /></ProtectedRoute>} />
+        <Route path="/certificates" element={<ProtectedRoute><CertificateRegistryPage /></ProtectedRoute>} />
+        <Route path="/certificates/register" element={<ProtectedRoute roles={REGISTER_ROLES}><IssuePage /></ProtectedRoute>} />
+        <Route path="/institutions" element={<ProtectedRoute><InstitutionsPage /></ProtectedRoute>} />
+        <Route path="/institutions/:id" element={<ProtectedRoute><InstitutionDetailsPage /></ProtectedRoute>} />
 
-              {/* Legacy paths */}
-              <Route path="/issue" element={<ProtectedRoute roles={REGISTER_ROLES}><Navigate to="/certificates/register" replace /></ProtectedRoute>} />
-              <Route path="/certificates/:certificateId" element={<ProtectedRoute><LegacyCertificateRedirect /></ProtectedRoute>} />
+        {/* Legacy paths */}
+        <Route path="/issue" element={<ProtectedRoute roles={REGISTER_ROLES}><Navigate to="/certificates/register" replace /></ProtectedRoute>} />
+        <Route path="/certificates/:certificateId" element={<ProtectedRoute><LegacyCertificateRedirect /></ProtectedRoute>} />
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Suspense>
-        </div>
-      </CSSTransition>
-    </TransitionGroup>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

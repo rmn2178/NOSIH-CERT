@@ -94,21 +94,12 @@
 }
 
 /* ── Page route transitions ───────────────────────────── */
-.page-enter {
-  opacity: 0;
-  transform: translateY(4px);
+@keyframes page-fade-in {
+  from { opacity: 0.4; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.page-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 100ms ease, transform 100ms ease;
-}
-.page-exit {
-  opacity: 1;
-}
-.page-exit-active {
-  opacity: 0;
-  transition: opacity 70ms ease;
+.page-body {
+  animation: page-fade-in 90ms ease-out;
 }
 
 /* ── Base ─────────────────────────────────────────────── */

@@ -30,8 +30,18 @@ export default function Layout({ title, children }) {
 
   useEffect(() => {
     const id = setTimeout(() => {
-      ["/dashboard", "/registered-certificates", "/certificates", "/institutions", "/verify"].forEach(prefetchRoute);
-    }, 300);
+      ["/dashboard", "/registered-certificates", "/certificates", "/certificates/register", "/institutions", "/verify"].forEach(prefetchRoute);
+      if (user.id || user.email) {
+        queryClient.prefetchQuery({
+          queryKey: ["dashboard-stats", user.id || user.email, user.role],
+          queryFn: async () => (await getDashboardStats()).data,
+        });
+        queryClient.prefetchQuery({
+          queryKey: ["registered-certificates", { page: 1, limit: 25 }],
+          queryFn: async () => (await listCertificates({ page: 1, limit: 25 })).data,
+        });
+      }
+    }, 100);
     return () => clearTimeout(id);
   }, []);
 
@@ -65,6 +75,7 @@ export default function Layout({ title, children }) {
               to={item.to}
               end={item.exact}
               onMouseEnter={() => prefetchNav(item.to)}
+              onMouseDown={() => prefetchNav(item.to)}
               onFocus={() => prefetchNav(item.to)}
               className={({ isActive }) => {
                 // Section items stay active on their sub-pages (detail, register, verify methods).
