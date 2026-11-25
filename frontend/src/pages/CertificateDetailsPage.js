@@ -162,6 +162,12 @@ export default function CertificateDetailsPage() {
 
       <div className="details-columns">
         <div className="details-main">
+          {doc && (
+            <div className="card">
+              <CertificatePreview file={doc} title={`Decrypted original — ${c.certificateId}`} height={640} />
+            </div>
+          )}
+
           <div className="card">
             <h3 className="section-title">Metadata</h3>
             <table className="details-table">
@@ -228,12 +234,6 @@ export default function CertificateDetailsPage() {
               </tbody>
             </table>
           </div>
-
-          {doc && (
-            <div className="card">
-              <CertificatePreview file={doc} title={`Decrypted original — ${c.certificateId}`} height={640} />
-            </div>
-          )}
 
           <div className="card">
             <h3 className="section-title"><History {...ICON} /> Audit trail</h3>

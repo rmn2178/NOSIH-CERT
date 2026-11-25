@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 
 /**
  * Source-PDF preview. Works with a File (issue flow) or a Blob (decrypted
@@ -21,16 +21,22 @@ export default function CertificatePreview({ file, title = "Certificate PDF", he
     <div className="pdf-preview">
       <div className="pdf-preview-bar">
         <span>{title}</span>
-        <a className="btn btn-sm btn-outline" href={url} download={file.name || "certificate.pdf"}>
-          <Download size={14} strokeWidth={1.75} aria-hidden /> Download
-        </a>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <a className="btn btn-sm btn-outline" href={url} target="_blank" rel="noreferrer">
+            <ExternalLink size={14} strokeWidth={1.75} aria-hidden /> Open in new tab
+          </a>
+          <a className="btn btn-sm btn-outline" href={url} download={file.name || "certificate.pdf"}>
+            <Download size={14} strokeWidth={1.75} aria-hidden /> Download
+          </a>
+        </div>
       </div>
-      <object data={url} type="application/pdf" width="100%" height={height} aria-label={title}>
-        <p className="pdf-preview-fallback">
-          Inline preview is not available in this browser.{" "}
-          <a href={url} download={file.name || "certificate.pdf"}>Download the PDF</a> instead.
-        </p>
-      </object>
+      <iframe
+        src={url}
+        title={title}
+        width="100%"
+        height={height}
+        style={{ border: "none", display: "block", background: "#fff" }}
+      />
     </div>
   );
 }
