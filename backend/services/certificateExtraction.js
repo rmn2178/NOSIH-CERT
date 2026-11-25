@@ -405,11 +405,11 @@ export async function extractCertificateMetadata(filePath, originalname = "certi
 
   base = fillMissingWithRealisticDefaults(base, originalname);
 
-  // ── Dynamic template extras (second targeted text call) ──
+  // ── Dynamic template extras (optional second call, disabled by default for speed) ──
   const template = templateFor(base.fields.certificateType);
   const extraKeys = Object.keys(template.extraFields);
   let extraData = {};
-  if (!usedFallback && extraKeys.length > 0 && Date.now() < deadline) {
+  if (process.env.ENABLE_EXTRA_GEMINI_CALL === "true" && !usedFallback && extraKeys.length > 0 && Date.now() < deadline) {
     try {
       const answer = await timed("gemini extras", () =>
         generateStructuredText(

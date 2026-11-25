@@ -18,15 +18,15 @@
 import "../env.js"; // loads the repository-root .env — must come first
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const GEMINI_FALLBACK_MODELS = (
   process.env.GEMINI_FALLBACK_MODELS ||
-  "gemini-3.5-flash-lite,gemini-3-flash-preview,gemini-flash-lite-latest,gemini-flash-latest"
+  "gemini-3.5-flash,gemini-3-flash-preview,gemini-flash-lite-latest"
 )
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 8000);
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 5000);
 const GEMINI_MAX_ATTEMPTS = Number(process.env.GEMINI_MAX_ATTEMPTS || 3);
 const GEMINI_BACKOFF_MS = Number(process.env.GEMINI_BACKOFF_MS || 200);
 
