@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, FileUp, FolderOpen, Sparkles, PenLine, ShieldCheck, ExternalLink, AlertTriangle,
+  CheckCircle2, Loader2, Lock,
 } from "lucide-react";
 import Layout from "../components/Layout";
 import CertificateUpload from "../components/CertificateUpload";
@@ -311,16 +312,7 @@ export default function IssuePage() {
       )}
 
       {/* ── EXTRACTING ── */}
-      {phase === "extracting" && (
-        <div className="card extract-phase">
-          <div className="extract-loader" aria-hidden />
-          <h3>Extracting certificate details…</h3>
-          <p className="muted">
-            Text layer first; scanned pages are OCR-processed. Only extracted text
-            is sent to the AI — the document image never leaves the server.
-          </p>
-        </div>
-      )}
+      {phase === "extracting" && <ExtractingView fileName={file?.name} />}
 
       {/* ── STEP 2: REVIEW ── */}
       {(phase === "review" || phase === "preparing") && (
@@ -529,6 +521,100 @@ export default function IssuePage() {
     <Layout title={reissue ? `Reissue ${reissue.supersedesCertificateId}` : "Register Existing Certificate"}>
       {content}
     </Layout>
+  );
+}
+
+const EXTRACT_STAGES = [
+  { title: "Validating & preserving original PDF", detail: "Checking structure without modifying document bytes" },
+  { title: "Scanning text layer & local OCR", detail: "Reading printed & scanned text with Tesseract on-server" },
+  { title: "Structuring certificate fields", detail: "Identifying holder name, credential ID, dates & issuer" },
+  { title: "Preparing review form", detail: "Organizing extracted values for your confirmation" },
+];
+
+/** Animated scanner + live multi-stage progress view during extraction. */
+function ExtractingView({ fileName }) {
+  const [step, setStep] = useState(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setStep(1), 700);
+    const t2 = setTimeout(() => setStep(2), 2600);
+    const t3 = setTimeout(() => setStep(3), 5800);
+    const tick = setInterval(() => setElapsedSec((s) => s + 1), 1000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearInterval(tick);
+    };
+  }, []);
+
+  const progressPct = [18, 46, 76, 92][step] ?? 92;
+
+  return (
+    <div className="card extract-phase">
+      <div className="extract-grid">
+        <div className="extract-scanner" aria-hidden="true">
+          <div className="scan-corner tl" />
+          <div className="scan-corner tr" />
+          <div className="scan-corner bl" />
+          <div className="scan-corner br" />
+          <div className="scan-doc">
+            <div className="scan-doc-badge" />
+            <div className="scan-line-lg" />
+            <div className="scan-line-md" />
+            <div className="scan-divider" />
+            <div className="scan-line-sm" />
+            <div className="scan-line-md" />
+            <div className="scan-line-sm short" />
+            <div className="scan-seal" />
+          </div>
+          <div className="scan-beam" />
+        </div>
+
+        <div className="extract-details">
+          <div className="extract-header-row">
+            <div>
+              <h3>Analysing certificate…</h3>
+              {fileName && <div className="extract-filename mono">{fileName}</div>}
+            </div>
+            <span className="extract-timer mono">{elapsedSec}s</span>
+          </div>
+
+          <div className="extract-progress-track" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
+            <div className="extract-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+
+          <ul className="extract-steps">
+            {EXTRACT_STAGES.map((stage, idx) => {
+              const state = idx < step ? "done" : idx === step ? "active" : "pending";
+              return (
+                <li key={stage.title} className={`extract-step ${state}`}>
+                  <span className="extract-step-icon">
+                    {state === "done" ? (
+                      <CheckCircle2 size={17} strokeWidth={2} />
+                    ) : state === "active" ? (
+                      <Loader2 size={17} strokeWidth={2} className="spin" />
+                    ) : (
+                      <span className="extract-dot" />
+                    )}
+                  </span>
+                  <div>
+                    <strong>{stage.title}</strong>
+                    <small>{stage.detail}</small>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="extract-privacy">
+            <Lock size={13} strokeWidth={2} aria-hidden />
+            <span>Document pixels never leave this server — only extracted text is structured.</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
