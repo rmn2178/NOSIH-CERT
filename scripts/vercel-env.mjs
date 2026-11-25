@@ -30,7 +30,7 @@ const option = (name, fallback) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
 
-const PROJECT = option("--project", "nosih-secure");
+const PROJECT = option("--project", "nosih-cert");
 const TARGET = option("--env", "production");
 const ALSO_PREVIEW = flag("--preview");
 const DRY_RUN = flag("--dry-run");

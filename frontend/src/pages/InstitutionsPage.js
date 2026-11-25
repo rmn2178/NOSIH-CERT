@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Building2, BadgeCheck, Clock, Ban, Plus, Wallet, Users, ChevronDown, ChevronUp, KeyRound,
+  Building2, BadgeCheck, Clock, Ban, Plus, Wallet, Users, KeyRound, Search, Eye, RotateCcw,
 } from "lucide-react";
 import Layout from "../components/Layout";
 import {
   listInstitutions, getInstitution, getMyInstitution, setInstitutionStatus,
-  addIssuerWallet, patchIssuerWallet, registerUser, patchInstitutionUser,
+  listIssuerWallets, addIssuerWallet, patchIssuerWallet, registerUser, patchInstitutionUser,
   apiErrorMessage, sessionUser,
 } from "../utils/api";
 import {
@@ -34,59 +35,115 @@ export default function InstitutionsPage() {
 // ── Platform admin ───────────────────────────────────────
 
 function PlatformView() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
+  const [walletsByInst, setWalletsByInst] = useState({});
   const [filter, setFilter] = useState("");
-  const [expanded, setExpanded] = useState(null);
-  const [decision, setDecision] = useState(null); // {institution, status}
+  const [search, setSearch] = useState("");
+  const [decision, setDecision] = useState(null); // {institution, status, reactivate?}
+  const [suspendTarget, setSuspendTarget] = useState(null);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
     setLoading(true);
     listInstitutions(filter ? { status: filter } : undefined)
-      .then((res) => setRows(res.data.institutions || []))
+      .then(async (res) => {
+        const insts = res.data.institutions || [];
+        setRows(insts);
+        const entries = await Promise.all(insts.map(async (i) => {
+          try {
+            const w = await listIssuerWallets(i.id);
+            return [i.id, w.data.wallets || []];
+          } catch {
+            return [i.id, []];
+          }
+        }));
+        setWalletsByInst(Object.fromEntries(entries));
+      })
       .catch((err) => setError(apiErrorMessage(err, "Could not load institutions")))
       .finally(() => setLoading(false));
   }, [filter]);
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  function done(message) {
+    setDecision(null);
+    setSuspendTarget(null);
+    setNotice(message);
+    load();
+  }
+
+  const term = search.trim().toLowerCase();
+  const visible = term
+    ? rows.filter((i) => [i.name, i.institutionId, i.registrationNumber].some((v) => String(v || "").toLowerCase().includes(term)))
+    : rows;
+
   return (
     <Layout title="Institutions">
       <div className="toolbar">
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <div className="search-input">
+          <Search size={16} strokeWidth={1.75} aria-hidden />
+          <input
+            placeholder="Search institution name, ID or registration no.…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter by status">
           <option value="">All statuses</option>
           {Object.entries(INSTITUTION_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <span className="total-count">{rows.length} institution{rows.length === 1 ? "" : "s"}</span>
+        <span className="total-count">{visible.length} institution{visible.length === 1 ? "" : "s"}</span>
       </div>
 
+      {notice && <div className="alert alert-success">{notice}</div>}
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="card">
-        {loading ? <p className="muted">Loading…</p> : rows.length === 0 ? (
-          <p className="muted">No institutions{filter ? ` with status “${filter}”` : ""}. Applications arrive from the public sign-in page.</p>
+        {loading ? <p className="muted">Loading…</p> : visible.length === 0 ? (
+          <p className="muted">No institutions{filter ? ` with status “${filter}”` : ""}{term ? " match your search" : ""}. Applications arrive from the public sign-in page.</p>
         ) : (
           <div className="table-wrapper">
             <table className="cert-table">
               <thead>
-                <tr><th>Institution</th><th>ID</th><th>Registration no.</th><th>Applied</th><th>Status</th><th>Actions</th></tr>
+                <tr>
+                  <th>Institution</th><th>Institution ID</th><th>Wallet</th><th>Registration Date</th>
+                  <th>Approval Status</th><th>Account Status</th><th>Actions</th>
+                </tr>
               </thead>
               <tbody>
-                {rows.map((inst) => (
-                  <React.Fragment key={inst.id}>
-                    <tr>
+                {visible.map((inst) => {
+                  const wallets = walletsByInst[inst.id] || [];
+                  const primary = wallets.find((w) => w.active) || wallets[0];
+                  const enabled = inst.verificationStatus === "approved";
+                  return (
+                    <tr key={inst.id}>
                       <td>
-                        <button type="button" className="link-btn" onClick={() => setExpanded(expanded === inst.id ? null : inst.id)}>
-                          {expanded === inst.id ? <ChevronUp {...ICON} /> : <ChevronDown {...ICON} />} {inst.name}
+                        <button type="button" className="link-btn" onClick={() => navigate(`/institutions/${inst.id}`)}>
+                          <Building2 {...ICON} /> {inst.name}
                         </button>
                       </td>
                       <td className="mono">{inst.institutionId}</td>
-                      <td className="mono">{inst.registrationNumber}</td>
+                      <td className="mono" title={primary?.walletAddress || ""}>
+                        {primary ? shortHex(primary.walletAddress, 10, 6) : "—"}
+                        {wallets.length > 1 && <span className="badge badge-neutral">+{wallets.length - 1}</span>}
+                      </td>
                       <td>{formatDate(inst.createdAt)}</td>
                       <td><span className={INSTITUTION_STATUS_BADGE[inst.verificationStatus]}>{INSTITUTION_STATUS_LABELS[inst.verificationStatus]}</span></td>
+                      <td><span className={`badge ${enabled ? "badge-active" : "badge-neutral"}`}>{enabled ? "Enabled" : "Disabled"}</span></td>
                       <td className="action-btns">
-                        {inst.verificationStatus !== "approved" && (
+                        <button type="button" className="btn btn-sm btn-outline" onClick={() => navigate(`/institutions/${inst.id}`)}>
+                          <Eye {...ICON} /> View
+                        </button>
+                        {(inst.verificationStatus === "pending" || inst.verificationStatus === "rejected") && (
                           <button type="button" className="btn btn-sm btn-primary" onClick={() => setDecision({ institution: inst, status: "approved" })}>
                             <BadgeCheck {...ICON} /> Approve
                           </button>
@@ -97,19 +154,19 @@ function PlatformView() {
                           </button>
                         )}
                         {inst.verificationStatus === "approved" && (
-                          <button type="button" className="btn btn-sm btn-danger" onClick={() => setDecision({ institution: inst, status: "suspended" })}>
+                          <button type="button" className="btn btn-sm btn-danger" onClick={() => setSuspendTarget(inst)}>
                             <Ban {...ICON} /> Suspend
+                          </button>
+                        )}
+                        {inst.verificationStatus === "suspended" && (
+                          <button type="button" className="btn btn-sm btn-primary" onClick={() => setDecision({ institution: inst, status: "approved", reactivate: true })}>
+                            <RotateCcw {...ICON} /> Reactivate
                           </button>
                         )}
                       </td>
                     </tr>
-                    {expanded === inst.id && (
-                      <tr className="row-expanded">
-                        <td colSpan={6}><InstitutionDetail id={inst.id} /></td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -120,19 +177,28 @@ function PlatformView() {
         <DecisionModal
           decision={decision}
           onClose={() => setDecision(null)}
-          onDone={() => { setDecision(null); load(); }}
+          onDone={(message) => done(message)}
+        />
+      )}
+      {suspendTarget && (
+        <SuspendModal
+          institution={suspendTarget}
+          onClose={() => setSuspendTarget(null)}
+          onDone={(message) => done(message)}
         />
       )}
     </Layout>
   );
 }
 
-function DecisionModal({ decision, onClose, onDone }) {
-  const { institution, status } = decision;
+export function DecisionModal({ decision, onClose, onDone }) {
+  const { institution, status, reactivate } = decision;
   const needsReason = status !== "approved";
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const title = reactivate ? "Reactivate" : INSTITUTION_STATUS_LABELS[status];
 
   async function submit(e) {
     e.preventDefault();
@@ -141,7 +207,11 @@ function DecisionModal({ decision, onClose, onDone }) {
     setError("");
     try {
       await setInstitutionStatus(institution.id, status, reason.trim());
-      onDone();
+      onDone(
+        reactivate
+          ? `${institution.name} (${institution.institutionId}) was reactivated. Certificate registration is enabled again.`
+          : `${institution.name} (${institution.institutionId}) is now ${INSTITUTION_STATUS_LABELS[status].toLowerCase()}.`
+      );
     } catch (err) {
       setError(apiErrorMessage(err, "Status change failed"));
       setBusy(false);
@@ -152,14 +222,14 @@ function DecisionModal({ decision, onClose, onDone }) {
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal-card">
         <div className="modal-header">
-          <h2>{INSTITUTION_STATUS_LABELS[status]} — {institution.name}</h2>
+          <h2>{title} — {institution.name}</h2>
         </div>
         <p className="modal-warning">
-          {status === "approved"
-            ? "Approval lets this institution register issuer wallets and issue certificates. Their public verification badge becomes “Verified institution”."
-            : status === "suspended"
-              ? "Suspension blocks new issuance immediately. Existing certificates keep their chain state."
-              : "Rejection blocks issuance. The institution keeps its account and can be approved later."}
+          {reactivate
+            ? "Reactivation restores this institution's ability to register new certificates. Previously registered certificates were never affected by the suspension."
+            : status === "approved"
+              ? "Approval lets this institution register issuer wallets and register certificates. Their public verification badge becomes “Verified institution”."
+              : "Rejection blocks registration. The institution keeps its account and can be approved later."}
         </p>
         <form onSubmit={submit}>
           <div className="field">
@@ -170,7 +240,96 @@ function DecisionModal({ decision, onClose, onDone }) {
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
             <button type="submit" className={`btn ${status === "approved" ? "btn-primary" : "btn-danger"}`} disabled={busy || (needsReason && reason.trim().length < 3)}>
-              {busy ? "Saving…" : `Confirm ${status}`}
+              {busy ? "Saving…" : reactivate ? "Confirm Reactivation" : `Confirm ${status}`}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Suspension confirmation — the administrator must type the EXACT institution
+ * ID before Confirm Suspension enables. Uses the existing authorized status
+ * mechanism; suspension blocks new registrations only, never revokes or
+ * removes previously registered certificates.
+ */
+export function SuspendModal({ institution, onClose, onDone }) {
+  const [confirmId, setConfirmId] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const idMatches = confirmId.trim() === institution.institutionId;
+  const reasonValid = reason.trim().length >= 3;
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!idMatches || !reasonValid || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await setInstitutionStatus(institution.id, "suspended", reason.trim());
+      onDone(`${institution.name} (${institution.institutionId}) has been suspended. New certificate registrations are blocked; previously registered certificates remain intact and independently verifiable.`);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Suspension failed"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Suspend institution">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h2><Ban {...ICON} /> Suspend institution</h2>
+        </div>
+
+        <table className="details-table suspend-summary">
+          <tbody>
+            <tr><td>Institution name</td><td><strong>{institution.name}</strong></td></tr>
+            <tr><td>Institution ID</td><td className="mono">{institution.institutionId}</td></tr>
+          </tbody>
+        </table>
+
+        <p className="modal-warning">
+          Suspension takes effect immediately: this institution will not be able to register new
+          certificates. Previously registered certificates are NOT revoked or altered — they stay
+          on-chain and remain independently verifiable. You can reactivate the institution later.
+        </p>
+
+        <form onSubmit={submit}>
+          <div className="field">
+            <label htmlFor="suspend-confirm-id">Type the exact institution ID to confirm</label>
+            <input
+              id="suspend-confirm-id"
+              className="mono"
+              placeholder={institution.institutionId}
+              value={confirmId}
+              onChange={(e) => setConfirmId(e.target.value)}
+              disabled={busy}
+              autoComplete="off"
+            />
+            {confirmId && !idMatches && (
+              <small className="suspend-mismatch">The entered ID does not match {institution.institutionId}.</small>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="suspend-reason">Reason (required, kept private)</label>
+            <textarea
+              id="suspend-reason"
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={1000}
+              disabled={busy}
+            />
+          </div>
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+            <button type="submit" className="btn btn-danger" disabled={!idMatches || !reasonValid || busy}>
+              {busy ? "Suspending…" : "Confirm Suspension"}
             </button>
           </div>
         </form>
@@ -222,7 +381,7 @@ function InstitutionView({ user }) {
         {inst.statusReason && <p className="muted">Platform note: {inst.statusReason}</p>}
         {inst.verificationStatus !== "approved" && (
           <div className="alert alert-warning">
-            <Clock {...ICON} /> Issuance is disabled until a platform admin approves this institution.
+            <Clock {...ICON} /> Registration is disabled until a platform admin approves this institution.
           </div>
         )}
         <table className="details-table">
@@ -241,46 +400,7 @@ function InstitutionView({ user }) {
   );
 }
 
-function InstitutionDetail({ id }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    getInstitution(id)
-      .then((res) => setData(res.data))
-      .catch((err) => setError(apiErrorMessage(err)));
-  }, [id]);
-  if (error) return <div className="alert alert-error">{error}</div>;
-  if (!data) return <p className="muted">Loading…</p>;
-  return (
-    <div className="institution-detail">
-      <h4><Wallet {...ICON} /> Issuer wallets ({data.wallets.length})</h4>
-      {data.wallets.length === 0 ? <p className="muted">None registered.</p> : (
-        <ul className="plain-list">
-          {data.wallets.map((w) => (
-            <li key={w.id}>
-              <span className="mono" title={w.walletAddress}>{shortHex(w.walletAddress, 16, 8)}</span>
-              <span className={`badge ${w.active ? "badge-active" : "badge-neutral"}`}>{w.active ? "active" : "inactive"}</span>
-              {w.authorizationTxHash
-                ? <span className="badge badge-active">on-chain authorized</span>
-                : <span className="badge badge-warning">awaiting authorizeIssuer</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-      <h4><Users {...ICON} /> Staff ({data.users.length})</h4>
-      <ul className="plain-list">
-        {data.users.map((u) => (
-          <li key={u.id}>
-            {u.email} <span className="role-badge">{ROLE_LABELS[u.role] || u.role}</span>
-            {!u.active && <span className="badge badge-revoked">deactivated</span>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function WalletsCard({ institution, wallets, isAdmin, onChanged }) {
+export function WalletsCard({ institution, wallets, isAdmin, onChanged }) {
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -315,7 +435,7 @@ function WalletsCard({ institution, wallets, isAdmin, onChanged }) {
       <p className="muted">
         One wallet belongs to one institution. Registration here is the database association —
         the platform must also run the on-chain <span className="mono">authorizeIssuer</span> transaction
-        before the wallet can sign issuances.
+        before the wallet can sign registrations.
       </p>
       {error && <div className="alert alert-error">{error}</div>}
       {wallets.length === 0 ? <p className="muted">No wallets registered yet.</p> : (
@@ -375,7 +495,7 @@ function WalletsCard({ institution, wallets, isAdmin, onChanged }) {
   );
 }
 
-function StaffCard({ institution, users, isAdmin, currentUser, onChanged }) {
+export function StaffCard({ institution, users, isAdmin, currentUser, onChanged }) {
   const [form, setForm] = useState({ email: "", password: "", role: "issuer", walletAddress: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

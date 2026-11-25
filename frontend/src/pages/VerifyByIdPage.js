@@ -1,22 +1,28 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ScanSearch, FileSearch, ArrowRight } from "lucide-react";
+import { ScanSearch, FileSearch, FileUp, ArrowLeft } from "lucide-react";
 import VerificationResult from "../components/VerificationResult";
-import { verifyCertificatePublic, apiErrorMessage } from "../utils/api";
+import IntegrityResult from "../components/IntegrityResult";
+import { verifyCertificatePublic, tamperCheckPublic, apiErrorMessage } from "../utils/api";
 import logo from "../assets/nosih-logo.png";
 import "./styles.css";
 
 const CERT_RE = /^CERT-[0-9A-F]{8}$/i;
+const ICON = { size: 16, strokeWidth: 1.75, "aria-hidden": true };
 
 /**
- * PUBLIC verification — no account needed. Chain-authoritative: a database
- * row alone can never produce an authentic verdict, and a chain outage is
- * shown as INDETERMINATE (503), never as success.
+ * PUBLIC verification by Certificate ID — no account needed. Chain-authoritative:
+ * a database row alone can never produce an authentic verdict, and a chain
+ * outage is shown as INDETERMINATE (503), never as success. The stored-document
+ * integrity check (hash-only) is included here — there is no separate Tamper
+ * Check page.
  */
-export default function VerifyPage() {
+export default function VerifyByIdPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [input, setInput] = useState(searchParams.get("certificateId") || "");
   const [result, setResult] = useState(null);
+  const [integrity, setIntegrity] = useState(null);
+  const [integrityBusy, setIntegrityBusy] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -30,6 +36,7 @@ export default function VerifyPage() {
     setBusy(true);
     setError("");
     setResult(null);
+    setIntegrity(null);
     try {
       const res = await verifyCertificatePublic(id);
       setResult(res.data);
@@ -62,12 +69,28 @@ export default function VerifyPage() {
     runVerify(id);
   }
 
+  async function checkStoredIntegrity() {
+    if (!result?.certificateId) return;
+    setIntegrityBusy(true);
+    setIntegrity(null);
+    try {
+      const res = await tamperCheckPublic(result.certificateId);
+      setIntegrity(res.data);
+    } catch (err) {
+      const payload = err.response?.data;
+      if (payload?.verdict) setIntegrity(payload);
+      else setIntegrity({ verdict: "not-found", verdictLabel: apiErrorMessage(err, "Integrity check failed"), disclaimer: "" });
+    } finally {
+      setIntegrityBusy(false);
+    }
+  }
+
   return (
     <div className="verify-wrapper">
       <header className="verify-header">
         <img src={logo} alt="NOSIH logo" className="logo-img" />
-        <h1>NOSIH Verification</h1>
-        <p>Check any certificate against the blockchain record — no account required.</p>
+        <h1>Verify by Certificate ID</h1>
+        <p>Enter your unique certificate identifier to retrieve and verify its blockchain registration.</p>
       </header>
 
       <div className="verify-card">
@@ -81,7 +104,7 @@ export default function VerifyPage() {
             maxLength={13}
           />
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            <ScanSearch size={16} strokeWidth={1.75} aria-hidden /> {busy ? "Checking chain…" : "Verify"}
+            <ScanSearch {...ICON} /> {busy ? "Checking chain…" : "Verify Certificate"}
           </button>
         </form>
         <p className="verify-hint">
@@ -92,17 +115,22 @@ export default function VerifyPage() {
         {error && <div className="alert alert-error">{error}</div>}
         <VerificationResult payload={result} onVerifyAnother={verifyAnother} />
 
-        {result && (
+        {result?.found && (
           <div className="verify-actions">
-            <Link className="btn btn-secondary" to={`/tamper?certificateId=${result.certificateId}`}>
-              <FileSearch size={16} strokeWidth={1.75} aria-hidden /> Check document integrity
+            <button type="button" className="btn btn-secondary" onClick={checkStoredIntegrity} disabled={integrityBusy}>
+              <FileSearch {...ICON} /> {integrityBusy ? "Checking stored document…" : "Check stored document integrity"}
+            </button>
+            <Link className="btn btn-secondary" to="/verify/upload">
+              <FileUp {...ICON} /> Verify an uploaded PDF instead
             </Link>
           </div>
         )}
+
+        <IntegrityResult result={integrity} />
       </div>
 
       <footer className="verify-footer">
-        <Link to="/login">Institution sign in <ArrowRight size={14} strokeWidth={1.75} aria-hidden /></Link>
+        <Link to="/verify"><ArrowLeft {...ICON} /> Back to verification methods</Link>
         <span>NOSIH · hashes on Polygon Amoy · documents encrypted on IPFS</span>
       </footer>
     </div>

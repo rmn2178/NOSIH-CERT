@@ -2,6 +2,9 @@
   "name": "nosih-contracts",
   "version": "1.0.0",
   "description": "NOSIH — CertificateRegistry contract, deployment tooling, and live-readiness gates",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",

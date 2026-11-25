@@ -299,6 +299,62 @@ export async function tamperCheckStored(certificateId, { provider, contractAddre
 }
 
 /**
+ * Public PDF-only verification (no certificate id supplied). SHA-256 of the
+ * exact uploaded bytes → the existing document_hash index → the SAME
+ * chain-authoritative tamper + verdict checks used by the id-based flows.
+ * The lookup is the registered-document index: when it has no row the result
+ * is an honest not-found, never a fabricated verdict.
+ */
+export async function verifyUploadedDocument(uploadedBuffer, opts = {}) {
+  if (!Buffer.isBuffer(uploadedBuffer) || uploadedBuffer.length === 0) {
+    throw Object.assign(new Error("Upload a PDF document"), { status: 400 });
+  }
+  if (!uploadedBuffer.subarray(0, 1024).includes(Buffer.from("%PDF-"))) {
+    throw Object.assign(new Error("The uploaded file is not a PDF (magic bytes missing)"), { status: 400 });
+  }
+
+  const uploadedHash = computeDocumentHash(uploadedBuffer);
+  const { data: indexed, error } = await supabase
+    .from("certificates")
+    .select("certificate_id")
+    .eq("document_hash", uploadedHash)
+    .maybeSingle();
+  if (error) throw Object.assign(new Error(error.message), { status: 500 });
+
+  if (!indexed) {
+    return {
+      httpStatus: 404,
+      payload: {
+        found: false,
+        mode: "uploaded-document",
+        uploadedHash,
+        verdict: "not-found",
+        verdictLabel: "Certificate Not Found",
+        match: false,
+        verifiedAt: new Date().toISOString(),
+        disclaimer: DISCLAIMER,
+      },
+    };
+  }
+
+  const tamper = await tamperCheckUploaded(indexed.certificate_id, uploadedBuffer, opts);
+  const { payload } = await verifyCertificate(indexed.certificate_id, opts);
+  return {
+    httpStatus: 200,
+    payload: {
+      ...tamper,
+      verdictLabel: tamper.label,
+      certificate: payload.certificate,
+      institution: payload.institution,
+      transactionHash: payload.transactionHash,
+      certificateStatus: payload.status,
+      chainId: payload.chainId,
+      contractAddress: payload.contractAddress,
+    },
+  };
+}
+
+/**
  * Mode B — uploaded-PDF fingerprint vs the CHAIN hash. No AI, no decryption;
  * pure SHA-256 over the exact uploaded bytes.
  */

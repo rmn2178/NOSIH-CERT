@@ -335,11 +335,7 @@ code,
   letter-spacing: .03em;
 }
 
-input[type=text],
-input[type=email],
-input[type=password],
-input[type=date],
-input[type=search],
+input:not([type=checkbox]):not([type=radio]):not([type=file]),
 select,
 textarea {
   border: 1px solid var(--card-border);

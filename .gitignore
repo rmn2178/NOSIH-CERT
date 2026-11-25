@@ -50,3 +50,5 @@ desktop.ini
 
 # regenerable extraction fixtures
 backend/test-fixtures/
+.vercel
+.env*

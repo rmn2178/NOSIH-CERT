@@ -18,10 +18,17 @@
 import "../env.js"; // loads the repository-root .env — must come first
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 45000);
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const GEMINI_FALLBACK_MODELS = (
+  process.env.GEMINI_FALLBACK_MODELS ||
+  "gemini-3.7-flash,gemini-3.1-flash-lite,gemini-flash-latest"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 20000);
 const GEMINI_MAX_ATTEMPTS = Number(process.env.GEMINI_MAX_ATTEMPTS || 3);
-const GEMINI_BACKOFF_MS = Number(process.env.GEMINI_BACKOFF_MS || 750);
+const GEMINI_BACKOFF_MS = Number(process.env.GEMINI_BACKOFF_MS || 500);
 
 let genAI = null;
 function getGenAI() {
@@ -41,10 +48,10 @@ export function geminiConfigured() {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
-function getModel(schema, timeoutMs) {
+function getModel(schema, timeoutMs, modelName = GEMINI_MODEL) {
   return getGenAI().getGenerativeModel(
     {
-      model: GEMINI_MODEL,
+      model: modelName,
       generationConfig: {
         thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: "application/json",
@@ -99,22 +106,24 @@ export async function generateStructuredText(prompt, schema, deadline = Infinity
     throw new Error("Gemini receives extracted text only — media parts are forbidden");
   }
 
+  const candidates = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== GEMINI_MODEL)];
   let lastError = null;
-  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= Math.max(GEMINI_MAX_ATTEMPTS, candidates.length); attempt++) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) throw lastError || new Error("the extraction budget is spent");
 
+    const modelName = candidates[Math.min(attempt - 1, candidates.length - 1)];
     try {
-      const result = await getModel(schema, Math.min(GEMINI_TIMEOUT_MS, remaining)).generateContent([prompt]);
+      const result = await getModel(schema, Math.min(GEMINI_TIMEOUT_MS, remaining), modelName).generateContent([prompt]);
       return result.response.text();
     } catch (err) {
       lastError = err;
       const wait = GEMINI_BACKOFF_MS * 2 ** (attempt - 1);
-      const exhausted = attempt === GEMINI_MAX_ATTEMPTS || Date.now() + wait >= deadline;
+      const exhausted = attempt === Math.max(GEMINI_MAX_ATTEMPTS, candidates.length) || Date.now() + wait >= deadline;
       if (!isTransient(err) || exhausted) throw err;
 
       const reason = String(err.message || err).split("\n")[0].slice(0, 120);
-      console.warn(`[gemini] call failed (${reason}) — retry ${attempt + 1}/${GEMINI_MAX_ATTEMPTS} in ${wait} ms`);
+      console.warn(`[gemini] ${modelName} failed (${reason}) — trying next in ${wait} ms`);
       await new Promise((r) => setTimeout(r, wait));
     }
   }
