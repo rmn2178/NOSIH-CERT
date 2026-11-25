@@ -181,8 +181,23 @@ function withTimeout(promise, ms, label) {
 /** The Tesseract engine. */
 registerOcrEngine("tesseract", async (imageBuffer) => {
   const worker = await getWorker();
-  const { data } = await withTimeout(worker.recognize(imageBuffer), OCR_TIMEOUT_MS, "OCR");
-  return (data?.text || "").trim();
+  await worker.setParameters({ tessedit_pageseg_mode: "3" });
+  const first = await withTimeout(worker.recognize(imageBuffer), OCR_TIMEOUT_MS, "OCR");
+  let bestText = (first?.data?.text || "").trim();
+
+  // Styled certificates (badges, large display names, sidebars) often read much
+  // better in sparse-text mode (PSM 11) when auto segmentation misses lines.
+  if (bestText.length < 260) {
+    await worker.setParameters({ tessedit_pageseg_mode: "11" });
+    const sparse = await withTimeout(worker.recognize(imageBuffer), OCR_TIMEOUT_MS, "OCR");
+    const sparseText = (sparse?.data?.text || "").trim();
+    if (sparseText.length > bestText.length) {
+      bestText = sparseText;
+    }
+    await worker.setParameters({ tessedit_pageseg_mode: "3" });
+  }
+
+  return bestText;
 });
 
 // ── The API ───────────────────────────────────────────────
