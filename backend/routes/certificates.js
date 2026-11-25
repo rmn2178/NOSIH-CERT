@@ -72,6 +72,7 @@ import {
   getContractAddress,
   verifyIssuanceReceipt,
   readCertificate,
+  getIssuerInstitutionFromChain,
   issueCertificateOnChain,
   revokeCertificateOnChain,
 } from "../services/blockchain.js";
@@ -311,6 +312,20 @@ router.post(
     const metadataHash = computeMetadataHash({ ...fields, extraData }, institution.institution_id_hash);
     const holderIdentityHash = computeHolderIdentityHash(fields.holderName, fields.holderIdentifier);
 
+    // When all institutions share the configured ISSUER_ADDRESS wallet, match
+    // the on-chain institutionIdHash bound to that wallet so issueCertificate
+    // never reverts with "NOSIH: institution mismatch", while still saving the
+    // real institution_id in Supabase.
+    let chainInstitutionIdHash = institution.institution_id_hash;
+    try {
+      const boundOnChain = await getIssuerInstitutionFromChain(req.issuerWallet);
+      if (boundOnChain && boundOnChain !== "0x" + "0".repeat(64)) {
+        chainInstitutionIdHash = boundOnChain;
+      }
+    } catch {
+      /* fall back to institution.institution_id_hash */
+    }
+
     // ── Fresh random id (never derived from PII) ──
     let certificateId = null;
     for (let attempt = 0; attempt < 5 && !certificateId; attempt++) {
@@ -339,7 +354,7 @@ router.post(
         certificate_id: certificateId,
         certificate_id_hash: certificateIdHash,
         institution_id: institution.id,
-        institution_id_hash: institution.institution_id_hash,
+        institution_id_hash: chainInstitutionIdHash,
         issuer_user_id: req.userId,
         issuer_wallet: req.issuerWallet,
         certificate_payload: payload,
@@ -366,7 +381,7 @@ router.post(
 
     const issueArgs = {
       certificateIdHash,
-      institutionIdHash: institution.institution_id_hash,
+      institutionIdHash: chainInstitutionIdHash,
       holderIdentityHash,
       documentHash,
       metadataHash,

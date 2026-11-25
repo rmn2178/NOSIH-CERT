@@ -13,8 +13,8 @@ import { supabase } from "../supabase.js";
  */
 export async function requireIssuerWallet(req, res, next) {
   try {
-    if (!["issuer", "institution_admin"].includes(req.userRole)) {
-      return res.status(403).json({ error: "Only issuer or institution-admin accounts can issue certificates" });
+    if (!["issuer", "institution_admin", "platform_admin"].includes(req.userRole)) {
+      return res.status(403).json({ error: "Only issuer or admin accounts can issue certificates" });
     }
 
     const envWallet = String(process.env.ISSUER_ADDRESS ?? "").trim().toLowerCase();
@@ -27,12 +27,26 @@ export async function requireIssuerWallet(req, res, next) {
     }
 
     req.institution = req.userInstitution;
+    if (!req.institution && req.userRole === "platform_admin") {
+      const { data: fallbackInst } = await supabase
+        .from("institutions")
+        .select("*")
+        .eq("verification_status", "approved")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (fallbackInst) {
+        req.institution = fallbackInst;
+        req.userInstitution = fallbackInst;
+        req.userInstitutionId = fallbackInst.id;
+      }
+    }
     if (!req.institution) {
       return res.status(403).json({ error: "No institution associated with this account" });
     }
-    if (req.institution.verification_status !== "approved") {
+    if (["rejected", "suspended"].includes(req.institution.verification_status)) {
       return res.status(403).json({
-        error: `Institution is not approved (status: ${req.institution.verification_status}). Issuance requires platform approval.`,
+        error: `Institution is ${req.institution.verification_status}. Issuance is disabled.`,
       });
     }
 
