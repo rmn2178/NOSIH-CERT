@@ -185,18 +185,25 @@ function fallbackParseFromText(text) {
   }
 
   const instLine = lines.find((l) => /\b(university|institute|college|academy|school|polytechnic)\b/i.test(l));
-  if (instLine) set("institutionName", instLine, 0.65);
+  const platformMatch = full.match(/\b(HackerRank|Coursera|Udemy|edX|NPTEL|LinkedIn Learning|Microsoft|Google|AWS|IBM|Oracle|Cisco)\b/i);
+  if (instLine) set("institutionName", instLine, 0.7);
+  else if (platformMatch?.[1]) set("institutionName", platformMatch[1], 0.75);
 
   const holderMatch =
-    full.match(/(?:certify that|awarded to|presented to|conferred upon|this is to certify that)\s+([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,4})/i) ||
-    full.match(/(?:name|holder|student)\s*[:\-]\s*([A-Za-z.'-]+(?:\s+[A-Za-z.'-]+){0,4})/i);
-  if (holderMatch?.[1]) set("holderName", holderMatch[1], 0.6);
+    full.match(/(?:this is to certify that|certify that|awarded to|presented to|conferred upon)\s*[:\-]?\s*\n?\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,4})/i) ||
+    full.match(/(?:name|holder|student|recipient)\s*[:\-]\s*([A-Za-z.'-]+(?:\s+[A-Za-z.'-]+){0,4})/i);
+  if (holderMatch?.[1]) {
+    const cleanedName = holderMatch[1].replace(/\b(has|successfully|for|passed|completed)\b.*$/i, "").trim();
+    if (cleanedName.length >= 2) set("holderName", cleanedName, 0.65);
+  }
 
-  const courseMatch = full.match(/(?:degree of|in recognition of|completed|course|program(?:me)?)\s*(?:in|of|:|-)?\s*([A-Za-z0-9 &.,()-]{4,80})/i);
-  if (courseMatch?.[1]) set("courseName", courseMatch[1].split(/\r?\n/)[0], 0.5);
+  const courseMatch =
+    full.match(/(?:passed the|completed|in recognition of|degree of|certification(?:\s+test)?(?:\s+for)?(?:\s+in)?|course|program(?:me)?)\s*(?:in|of|:|-)?\s*\n?\s*([A-Za-z0-9 &.,()+#/-]{3,80})/i);
+  if (courseMatch?.[1]) set("courseName", courseMatch[1].split(/\r?\n/)[0].trim(), 0.55);
 
-  const numMatch = full.match(/(?:certificate\s*(?:no|number|id)|reg(?:istration)?\s*(?:no|number)|serial\s*no\.?)\s*[:#\-]?\s*([A-Z0-9\-\/]{4,32})/i);
-  if (numMatch?.[1]) set("certificateNumber", numMatch[1], 0.65);
+  const numMatch =
+    full.match(/(?:certificate\s*(?:no|number|id)|credential\s*(?:id|no)|reg(?:istration)?\s*(?:no|number)|serial\s*no\.?|\bID)\s*[:#\-]?\s*([A-Z0-9\-\/]{4,32})/i);
+  if (numMatch?.[1]) set("certificateNumber", numMatch[1], 0.7);
 
   const gradeMatch = full.match(/(?:grade|cgpa|gpa|class|division)\s*[:\-]?\s*([A-Za-z0-9.+ ]{1,20})/i);
   if (gradeMatch?.[1]) set("grade", gradeMatch[1].trim(), 0.55);
@@ -205,7 +212,18 @@ function fallbackParseFromText(text) {
   if (pctMatch?.[1]) set("percentage", pctMatch[1], 0.6);
 
   const isoDate = full.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  if (isoDate?.[1]) set("issueDate", isoDate[1], 0.65);
+  const textDate = full.match(/\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*,?\s+\d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})\b/i);
+  const slashDate = full.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
+  if (isoDate?.[1]) {
+    set("issueDate", isoDate[1], 0.7);
+  } else if (textDate?.[1]) {
+    const parsed = new Date(textDate[1]);
+    if (!Number.isNaN(parsed.getTime())) set("issueDate", parsed.toISOString().slice(0, 10), 0.7);
+  } else if (slashDate) {
+    const [, d, m, y] = slashDate;
+    const parsed = new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
+    if (!Number.isNaN(parsed.getTime())) set("issueDate", parsed.toISOString().slice(0, 10), 0.65);
+  }
 
   return { fields, confidence, evidence, inferredFields: [] };
 }

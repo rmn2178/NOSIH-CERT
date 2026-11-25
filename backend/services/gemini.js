@@ -21,14 +21,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const GEMINI_FALLBACK_MODELS = (
   process.env.GEMINI_FALLBACK_MODELS ||
-  "gemini-3.5-flash,gemini-3-flash-preview,gemini-flash-lite-latest"
+  "gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash,gemini-3-flash-preview"
 )
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 5000);
-const GEMINI_MAX_ATTEMPTS = Number(process.env.GEMINI_MAX_ATTEMPTS || 3);
-const GEMINI_BACKOFF_MS = Number(process.env.GEMINI_BACKOFF_MS || 200);
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 7000);
+const GEMINI_MAX_ATTEMPTS = Number(process.env.GEMINI_MAX_ATTEMPTS || 4);
+const GEMINI_BACKOFF_MS = Number(process.env.GEMINI_BACKOFF_MS || 250);
 
 let genAI = null;
 function getGenAI() {
@@ -106,7 +106,7 @@ export async function generateStructuredText(prompt, schema, deadline = Infinity
     throw new Error("Gemini receives extracted text only — media parts are forbidden");
   }
 
-  const candidates = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== GEMINI_MODEL)];
+  const candidates = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS];
   let lastError = null;
   for (let attempt = 1; attempt <= Math.max(GEMINI_MAX_ATTEMPTS, candidates.length); attempt++) {
     const remaining = deadline - Date.now();
@@ -118,9 +118,16 @@ export async function generateStructuredText(prompt, schema, deadline = Infinity
       return result.response.text();
     } catch (err) {
       lastError = err;
-      const wait = GEMINI_BACKOFF_MS * 2 ** (attempt - 1);
+      const wait = GEMINI_BACKOFF_MS * attempt;
       const exhausted = attempt === Math.max(GEMINI_MAX_ATTEMPTS, candidates.length) || Date.now() + wait >= deadline;
-      if (!isTransient(err) || exhausted) throw err;
+      if (!isTransient(err) || exhausted) {
+        // Optional OpenAI-compatible failover (e.g. GROQ_API_KEY) if Gemini is unavailable.
+        const groqKey = process.env.GROQ_API_KEY;
+        if (groqKey) {
+          return await callGroqFallback(prompt, groqKey, Math.min(GEMINI_TIMEOUT_MS, remaining));
+        }
+        throw err;
+      }
 
       const reason = String(err.message || err).split("\n")[0].slice(0, 120);
       console.warn(`[gemini] ${modelName} failed (${reason}) — trying next in ${wait} ms`);
@@ -128,6 +135,26 @@ export async function generateStructuredText(prompt, schema, deadline = Infinity
     }
   }
   throw lastError;
+}
+
+async function callGroqFallback(prompt, apiKey, timeoutMs) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0,
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`Groq fallback failed (${res.status})`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "{}";
 }
 
 /** Extracts the JSON object from a model answer (fenced or bare). */
