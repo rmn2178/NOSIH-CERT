@@ -62,7 +62,7 @@ function readEnvFile(file) {
 
 // One env file for the backend, plus the frontend's BUILD-time public config.
 const merged = readEnvFile(".env");
-const frontend = readEnvFile(path.join("frontend", ".env.local"));
+const frontend = { ...merged, ...readEnvFile(path.join("frontend", ".env.local")) };
 
 // The variables the Vercel function needs. Everything else (PORT, NODE_ENV,
 // VERIFY_BASE_URL, BACKEND_PUBLIC_URL, ADMIN_*, DEPLOYER_PRIVATE_KEY) stays

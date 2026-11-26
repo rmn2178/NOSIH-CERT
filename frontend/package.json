@@ -19,8 +19,8 @@
     "react-transition-group": "^4.4.5"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "node scripts/with-root-env.js start",
+    "build": "node scripts/with-root-env.js build",
     "vercel-build": "npm run build"
   },
   "proxy": "http://localhost:5001",
