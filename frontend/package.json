@@ -20,8 +20,8 @@
   },
   "scripts": {
     "start": "node scripts/with-root-env.js start",
-    "build": "node scripts/with-root-env.js build",
-    "vercel-build": "npm run build"
+    "build": "react-scripts build",
+    "vercel-build": "react-scripts build"
   },
   "proxy": "http://localhost:5001",
   "browserslist": {
